@@ -57,7 +57,34 @@ instrument_downblock_mapping = {
     14: "hay_block",
     15: "glowstone",
 }
-
+#音符盒音高
+notepitch_mapping = {
+        39: "6",
+        38: "5",
+        37: "4",
+        36: "3",
+        35: "2",
+        34: "1",
+        33: "0",
+        40: "7",
+        41: "8",
+        42: "9",
+        43: "10",
+        44: "11",
+        45: "12",
+        46: "13",
+        47: "14",
+        48: "15",
+        49: "16",
+        50: "17",
+        51: "18",
+        52: "19",
+        53: "20",
+        54: "21",
+        55: "22",
+        56: "23",
+        57: "24",
+}
 # 初始化 current_tick
 current_tick = 0
 i = 0
@@ -78,7 +105,7 @@ while current_tick <= length:
         x_tick1 = x_tick-1
         z_tick1 = z_tick-1
         #这里忘给中继器留位置了，记得*2然后留位置再fill
-        pitch = str(demo_song.notes[i].key)
+        pitch = demo_song.notes[i].key
         timbre = demo_song.notes[i].instrument
 
         # 获取音色字符
@@ -86,9 +113,11 @@ while current_tick <= length:
         # 获取下方块字符
         instrument_downblock = instrument_downblock_mapping.get(timbre, "unknown")
 
+        pitch1 = notepitch_mapping.get(pitch, "unknown")
+
         # 生成命令
         commanddown=f"setblock {x_tick1} {y_intdown} {z_int} {blockdown}"
-        command1 = f"setblock {x_tick} {y_int} {z_int} note_block[note={pitch},instrument={timbre_char}]"
+        command1 = f"setblock {x_tick} {y_int} {z_int} note_block[note={pitch1},instrument={timbre_char}]"
         command2 = f"setblock {x_tick} {y_intdown} {z_int} {instrument_downblock}"
         commandredstone= f"setblock {x_tick1} {y_int} {z_int} repeater[delay=1,facing=west]"
         print(notetick)
