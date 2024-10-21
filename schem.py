@@ -91,9 +91,12 @@ i = 0
 note_count = len(demo_song.notes)
 layer = demo_song.notes[i].layer
 # 遍历所有 tick
-while current_tick <= length and i < note_count:
-    if demo_song.notes[i].tick ==current_tick:
-        if layer == 0:#这里的0是要生成的轨道编号，0对应第一条轨道，1对应第二条，以此类推
+while current_tick <= length :
+    has_note = False  # 标志是否找到第一层音符
+    initial_i = i
+
+    while i < note_count and demo_song.notes[i].tick ==current_tick:
+        if demo_song.notes[i].layer == 0:#这里的0是要生成的轨道编号，0对应第一条轨道，1对应第二条，以此类推
         
         
             with open('E:/桌面/文件/nbp2mc/txt/test.txt', 'a') as file:
@@ -139,18 +142,18 @@ while current_tick <= length and i < note_count:
                 elif pan_fill < 0:
                     commandfillpan=f"fill {x_tick} {y_int-1} {z_int-1} {x_tick} {y_int-1} {z_pan+1} {blockdown}"
                 #if commandfillpan:
-                    #file.write(commandfillpan+"\n")
+                    file.write(commandfillpan+"\n")
                 layer = demo_song.notes[i].layer
                 file.write(commanddown+"\n"+command1+"\n"+command2+"\n"+commandredstone+"\n")
 
                     # 移动到下一个音符
-                i += 1
-                print(i,"当前i if")
-                #current_tick += 1
+                has_note = True
+                break
+        i += 1
+
 
             
-    else:
-            if layer == 0:
+    if not has_note:
                 with open('E:/桌面/文件/nbp2mc/txt/test.txt', 'a') as file:
                     x_air = x_int + current_tick*2
                     y_air = y_int + -1
@@ -171,6 +174,8 @@ while current_tick <= length and i < note_count:
                     
                     print(current_tick,"当前tick")
                     print(i,"当前i")
+    while i < note_count and demo_song.notes[i].tick == current_tick:
+        i += 1
     current_tick += 1
                     
                 
