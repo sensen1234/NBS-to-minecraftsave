@@ -1,17 +1,12 @@
 import pynbs
 
 # 读取 NBS 文件
-demo_song = pynbs.read('E:/桌面/文件/nbp2mc/littlestar.nbs')
+demo_song = pynbs.read('H:/文件/code/test.nbs')
 length = demo_song.header.song_length
 
 # command
-x = "0"
-y = "0"
-z = "0"
-
-x_int = int(x)
-y_int = int(y)
-z_int = int(z)
+x, y, z = "0", "0", "0"
+x_int, y_int, z_int = (int(v) for v in (x, y, z))
 
 x_length = x_int + length
 
@@ -99,23 +94,21 @@ while current_tick <= length :
         if demo_song.notes[i].layer == 0:#这里的0是要生成的轨道编号，0对应第一条轨道，1对应第二条，以此类推
         
         
-            with open('E:/桌面/文件/nbp2mc/txt/test.txt', 'w') as file:
+            with open('H:/文件/code/test.mcfunction', 'a') as file:
             # 如果当前 note 存在于当前 tick，生成命令
                 notetick = demo_song.notes[i].tick
                 x_tick = x_int + notetick*2
                 x_intdown= x_int-1
                 y_intdown = y_int + -1
                 #垫块，保持高度统一
+                #这里精简代码删除了这个，以后可能继续用
                 z_tick = z_int + notetick*2
-                x_tick1 = x_tick-1
-                z_tick1 = z_tick-1
-                #
                 pitch = demo_song.notes[i].key
                 timbre = demo_song.notes[i].instrument
-                pan = demo_song.notes[i].panning
-                pan_fill=int(pan/10)
+                pan_fill=int(round(demo_song.notes[i].panning/10,0))
                 z_pan=pan_fill+z_int
-                #这里获取带pan的坐标，如果panfill为0，那么久和zint一样了，pan有值的话就左右坐标
+                #这里获取带pan的坐标，如果panfill为0，那么就和zint一样了，pan有值的话就左右坐标
+                #这里保险起见，我还是用了round以防止出问题
 
 
 
@@ -126,23 +119,37 @@ while current_tick <= length :
                 pitch1 = notepitch_mapping.get(pitch, "unknown")
 
                 # 生成命令
-                commanddown=f"setblock {x_tick1} {y_intdown} {z_int} {blockdown}"
+                commanddown=f"setblock {x_tick-1} {y_intdown} {z_int} {blockdown}"
                 command1 = f"setblock {x_tick} {y_int} {z_pan} note_block[note={pitch1},instrument={timbre_char}]"
                 #生成音符盒
                 command2 = f"setblock {x_tick} {y_intdown} {z_pan} {instrument_downblock}"
                 #音符盒下面的垫块↑
-                commandredstone= f"setblock {x_tick1} {y_int} {z_int} repeater[delay=1,facing=west]"
+                commandredstone= f"setblock {x_tick-1} {y_int} {z_int} repeater[delay=1,facing=west]"
                 print(notetick)
                 print(commanddown)
                 print(command1)
                 print(command2)
                 print(commandredstone)
-                if pan_fill > 0:
-                    commandfillpan=f"fill {x_tick} {y_int-1} {z_int+1} {x_tick} {y_int-1} {z_pan-1} {blockdown}"
-                elif pan_fill < 0:
-                    commandfillpan=f"fill {x_tick} {y_int-1} {z_int-1} {x_tick} {y_int-1} {z_pan+1} {blockdown}"
-                #if commandfillpan:
-                    file.write(commandfillpan+"\n")
+
+                if pan_fill != 0:
+                    direction = 1 if pan_fill > 0 else -1
+                    abs_pan = abs(pan_fill)
+                    
+                    z_end = z_pan - direction
+                    commandfillpan = f"fill {x_tick} {y_int-1} {z_int} {x_tick} {y_int-1} {z_end} {blockdown}"
+                    cd_setuppan = f"setblock {x_tick} {y_int} {z_int} {blockup}"
+                    
+                    commands = [commandfillpan, cd_setuppan]
+                    
+                    if abs_pan > 1:
+                        start_z = z_int + direction
+                        end_z = z_pan - direction
+                        redstone_cmd = f"fill {x_tick} {y_int} {start_z} {x_tick} {y_int} {end_z} minecraft:redstone_wire[east=side]"
+                        commands.append(redstone_cmd)
+                    
+                    file.write("\n".join(commands) + "\n")
+                    
+
                 layer = demo_song.notes[i].layer
                 file.write(commanddown+"\n"+command1+"\n"+command2+"\n"+commandredstone+"\n")
 
@@ -154,7 +161,7 @@ while current_tick <= length :
 
             
     if not has_note:
-                with open('E:/桌面/文件/nbp2mc/txt/test.txt', 'w') as file:
+                with open('H:/文件/code/test.mcfunction', 'a') as file:
                     x_air = x_int + current_tick*2
                     y_air = y_int + -1
                     x_air1 = x_air-1
@@ -165,7 +172,6 @@ while current_tick <= length :
                     commandfilldown= f"setblock {x_air} {y_air} {z_int} {blockdown}"
                     commandredstoneair= f"setblock {x_air1} {y_int} {z_int} repeater[delay=1,facing=west]"
                     commandredstoneair1= f"setblock {x_air1} {y_air} {z_int} {blockdown}"
-                    #Print均为调试信息，介意可以注释
                     print(commandfillup)
                     print(commandfilldown)
                     print(commandredstoneair)
@@ -187,14 +193,9 @@ while current_tick <= length :
     # 增加 current_tick
                 
 
-# 大动脉的 fill
+# 大动脉的 fill，但其实没啥用( 暂时先保留
 command3 = f"fill {x} {y_int} {z} {x_length} {y} {z} {blockdown} keep"
 command4 = f"fill {x} {y} {z} {x_length} {y} {z} {blockup} keep"
 
 print(command3)
 print(command4)
-
-
-
-
-
