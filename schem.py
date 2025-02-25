@@ -123,6 +123,15 @@ while current_tick <= length :
                 command1 = f"setblock {x_tick} {y_int} {z_pan} note_block[note={pitch1},instrument={timbre_char}]"
                 #生成音符盒
                 command2 = f"setblock {x_tick} {y_intdown} {z_pan} {instrument_downblock}"
+                commands = [command2]
+
+                # 当为沙子时自动追加屏障命令
+                if instrument_downblock == "sand":
+                    # 生成屏障命令（y轴位置下移一层）
+                    commands.append(f"setblock {x_tick} {y_intdown-1} {z_pan} barrier")
+
+                # 最终合并命令
+                final_command = "\n".join(commands)
                 #音符盒下面的垫块↑
                 commandredstone= f"setblock {x_tick-1} {y_int} {z_int} repeater[delay=1,facing=west]"
                 print(notetick)
@@ -151,7 +160,7 @@ while current_tick <= length :
                     
 
                 layer = demo_song.notes[i].layer
-                file.write(commanddown+"\n"+command1+"\n"+command2+"\n"+commandredstone+"\n")
+                file.write(commanddown+"\n"+command1+"\n"+final_command+"\n"+commandredstone+"\n")
 
                     # 移动到下一个音符
                 has_note = True
