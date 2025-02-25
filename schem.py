@@ -99,7 +99,7 @@ while current_tick <= length :
         if demo_song.notes[i].layer == 0:#这里的0是要生成的轨道编号，0对应第一条轨道，1对应第二条，以此类推
         
         
-            with open('E:/桌面/文件/nbp2mc/txt/test.txt', 'a') as file:
+            with open('E:/桌面/文件/nbp2mc/txt/test.txt', 'w') as file:
             # 如果当前 note 存在于当前 tick，生成命令
                 notetick = demo_song.notes[i].tick
                 x_tick = x_int + notetick*2
@@ -154,7 +154,7 @@ while current_tick <= length :
 
             
     if not has_note:
-                with open('E:/桌面/文件/nbp2mc/txt/test.txt', 'a') as file:
+                with open('E:/桌面/文件/nbp2mc/txt/test.txt', 'w') as file:
                     x_air = x_int + current_tick*2
                     y_air = y_int + -1
                     x_air1 = x_air-1
@@ -165,6 +165,7 @@ while current_tick <= length :
                     commandfilldown= f"setblock {x_air} {y_air} {z_int} {blockdown}"
                     commandredstoneair= f"setblock {x_air1} {y_int} {z_int} repeater[delay=1,facing=west]"
                     commandredstoneair1= f"setblock {x_air1} {y_air} {z_int} {blockdown}"
+                    #Print均为调试信息，介意可以注释
                     print(commandfillup)
                     print(commandfilldown)
                     print(commandredstoneair)
