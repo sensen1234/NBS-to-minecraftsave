@@ -12,6 +12,7 @@ x_length = x_int + length
 
 blockdown = "iron_block"
 blockup = "iron_block"
+tick_status = {}
 
 # 创建音色映射
 instrument_mapping = {
@@ -89,6 +90,8 @@ layer = demo_song.notes[i].layer
 while current_tick <= length :
     has_note = False  # 标志是否找到第一层音符
     initial_i = i
+    tick_status[current_tick] = {'P_L': 0, 'P_R': 0}
+    #这里的tick_status是要为下面的多轨做判断，P_L为left P_R为right
 
     while i < note_count and demo_song.notes[i].tick ==current_tick:
         if demo_song.notes[i].layer == 0:#这里的0是要生成的轨道编号，0对应第一条轨道，1对应第二条，以此类推
@@ -140,21 +143,49 @@ while current_tick <= length :
                 print(command2)
                 print(commandredstone)
 
+                # 当需要生成平台填充指令时（pan_fill非零时执行）
                 if pan_fill != 0:
+                    # 判断填充方向：正方向（z轴+）为1，负方向（z轴-）为-1
                     direction = 1 if pan_fill > 0 else -1
+                    
+                    # 获取填充格数的绝对值用于逻辑判断
                     abs_pan = abs(pan_fill)
                     
+                    # 计算底部方块的z轴终点坐标（根据方向调整）
                     z_end = z_pan - direction
+                    
+                    # 生成底部方块填充命令（处理y_int-1层）
+                    # 示例：fill x 5 z1 x 5 z2 stone
                     commandfillpan = f"fill {x_tick} {y_int-1} {z_int} {x_tick} {y_int-1} {z_end} {blockdown}"
+                    
+                    # 生成顶部起始方块设置命令（处理y_int层）
+                    # 示例：setblock x 6 z1 stone
                     cd_setuppan = f"setblock {x_tick} {y_int} {z_int} {blockup}"
                     
+                    # 初始化命令列表（包含基础的两个命令）
                     commands = [commandfillpan, cd_setuppan]
+                    if direction == 1:
+                        tick_status[current_tick]['P_L'] = 1
+                    elif direction == -1:
+                        tick_status[current_tick]['P_R'] = 1
                     
+                    # 当需要铺设红石线时（原逻辑中 pan_fill绝对值>1）
                     if abs_pan > 1:
+                        # 计算红石线起点（起始坐标+方向偏移）
                         start_z = z_int + direction
+                        
+                        # 计算红石线终点（终点坐标-方向偏移）
                         end_z = z_pan - direction
+                        
+                        # 生成红石线填充命令（处理y_int层）
+                        # 示例：fill x 6 z1+1 x 6 z2-1 redstone_wire
                         redstone_cmd = f"fill {x_tick} {y_int} {start_z} {x_tick} {y_int} {end_z} minecraft:redstone_wire[east=side]"
+                        
+                        # 将红石命令加入列表
                         commands.append(redstone_cmd)
+                    
+                    # 将命令列表合并为多行字符串写入文件
+                    # 使用换行符连接，最后追加一个换行保持格式统一
                     
                     file.write("\n".join(commands) + "\n")
                     
@@ -193,6 +224,9 @@ while current_tick <= length :
     while i < note_count and demo_song.notes[i].tick == current_tick:
         i += 1
     current_tick += 1
+#重置状态，进行下一轮左右轨道判断
+current_tick = 0
+i = 0
                     
                 
 
