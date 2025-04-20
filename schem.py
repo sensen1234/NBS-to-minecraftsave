@@ -2,8 +2,11 @@ import sys
 import pynbs
 
 # 读取 NBS 文件
-demo_song = pynbs.read('I:/文件/code/test.nbs')
+demo_song = pynbs.read('D:/Code/NBS-to-minecraftsave/test.nbs')
 length = demo_song.header.song_length
+Generator_layer=int(0)
+Generator_layer_group=int(1)
+#从第0轨道开始生成（第0对应nbs第一条）
 
 # command
 x, y, z = "0", "0", "0"
@@ -55,33 +58,7 @@ instrument_downblock_mapping = {
     15: "glowstone",
 }
 #音符盒音高
-notepitch_mapping = {
-        39: "6",
-        38: "5",
-        37: "4",
-        36: "3",
-        35: "2",
-        34: "1",
-        33: "0",
-        40: "7",
-        41: "8",
-        42: "9",
-        43: "10",
-        44: "11",
-        45: "12",
-        46: "13",
-        47: "14",
-        48: "15",
-        49: "16",
-        50: "17",
-        51: "18",
-        52: "19",
-        53: "20",
-        54: "21",
-        55: "22",
-        56: "23",
-        57: "24",
-}
+notepitch_mapping = {39: "6",38: "5",37: "4",36: "3",35: "2",34: "1",33: "0",40: "7",41: "8",42: "9",43: "10",44: "11",45: "12",46: "13",47: "14",48: "15",49: "16",50: "17",51: "18",52: "19",53: "20",54: "21",55: "22",56: "23",57: "24",}
 # 初始化 current_tick
 current_tick = 0
 i = 0
@@ -95,10 +72,10 @@ while current_tick <= length :
     #这里的tick_status是要为下面的多轨做判断，P_L为left P_R为right
 
     while i < note_count and demo_song.notes[i].tick ==current_tick:
-        if demo_song.notes[i].layer == 0:#这里的0是要生成的轨道编号，0对应第一条轨道，1对应第二条，以此类推
+        if demo_song.notes[i].layer == Generator_layer:#Generator_layer为轨道，0对于nbs第一轨道，1对应第二
         
         
-            with open('I:/文件/code/test.mcfunction', 'a') as file:
+            with open('D:/Code/NBS-to-minecraftsave/test.mcfunction', 'a') as file:
             # 如果当前 note 存在于当前 tick，生成命令
                 notetick = demo_song.notes[i].tick
                 x_tick = x_int + notetick*2
@@ -202,7 +179,7 @@ while current_tick <= length :
 
             
     if not has_note:
-                with open('I:/文件/code/test.mcfunction', 'a') as file:
+                with open('D:/Code/NBS-to-minecraftsave/test.mcfunction', 'a') as file:
                     x_air = x_int + current_tick*2
                     y_air = y_int + -1
                     x_air1 = x_air-1
@@ -225,21 +202,27 @@ while current_tick <= length :
     while i < note_count and demo_song.notes[i].tick == current_tick:
         i += 1
     current_tick += 1
+Generator_layer=Generator_layer+1
+Generator_layer_group=Generator_layer_group+1
 #重置状态，进行下一轮左右轨道判断
+
+
+
+
 current_tick = 0
 i = 0
 layer = demo_song.notes[i].layer
 
-while current_tick <= length :
+while current_tick <= length and Generator_layer_group<= 3 :
     has_note = False  # 标志是否找到第一层音符
     initial_i = i
     #这里的tick_status是要为下面的多轨做判断，P_L为left P_R为right
 
     while i < note_count and demo_song.notes[i].tick ==current_tick:
-        if demo_song.notes[i].layer == 1:#这里的0是要生成的轨道编号，0对应第一条轨道，1对应第二条，以此类推
+        if demo_song.notes[i].layer == Generator_layer:#这里的0是要生成的轨道编号，0对应第一条轨道，1对应第二条，以此类推
         
         
-            with open('I:/文件/code/test.mcfunction', 'a') as file:
+            with open('D:/Code/NBS-to-minecraftsave/test.mcfunction', 'a') as file:
             # 如果当前 note 存在于当前 tick，生成命令
                 notetick = demo_song.notes[i].tick
                 x_tick = x_int + notetick*2
@@ -343,15 +326,13 @@ while current_tick <= length :
 
             
     if not has_note:
-                with open('I:/文件/code/test.mcfunction', 'a') as file:
+                with open('D:/Code/NBS-to-minecraftsave/test.mcfunction', 'a') as file:
                     x_air = x_int + current_tick*2
                     y_air = y_int + -1
                     x_air1 = x_air-1
                     y_air1= y_air-1
 
                     z_air = z_int + current_tick*2
-                    commandfillup= f"setblock {x_air} {y_int} {z_int} {blockup}"
-                    commandfilldown= f"setblock {x_air} {y_air} {z_int} {blockdown}"
                     commandredstoneair= f"setblock {x_air1} {y_int} {z_int} repeater[delay=1,facing=west]"
                     commandredstoneair1= f"setblock {x_air1} {y_air} {z_int} {blockdown}"
                     print(commandfillup)
@@ -359,23 +340,18 @@ while current_tick <= length :
                     print(commandredstoneair)
                     print(commandredstoneair1)
                     print("done")
-                    file.write(commandfillup+"\n"+commandfilldown+"\n"+commandredstoneair+"\n"+commandredstoneair1+"\n")
+                    #file.write(commandfillup+"\n"+commandfilldown+"\n"+commandredstoneair+"\n"+commandredstoneair1+"\n")
                     
                     print(current_tick,"当前tick")
                     print(i,"当前i")
     while i < note_count and demo_song.notes[i].tick == current_tick:
         i += 1
     current_tick += 1
+    Generator_layer_group=Generator_layer_group+1
+    Generator_layer=Generator_layer+1
 
     
             
 
     # 增加 current_tick
-                
-
-# 大动脉的 fill，但其实没啥用( 暂时先保留
-command3 = f"fill {x} {y_int} {z} {x_length} {y} {z} {blockdown} keep"
-command4 = f"fill {x} {y} {z} {x_length} {y} {z} {blockup} keep"
-
-print(command3)
-print(command4)
+print("Done")
