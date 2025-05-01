@@ -1,5 +1,4 @@
 
-
 import pynbs
 from collections import defaultdict
 
@@ -7,23 +6,21 @@ from collections import defaultdict
 # 用户配置区 (按需修改)
 # --------------------------
 
-# 文件路径配置
-NBS_FILE_PATH = 'D:/Code/NBS-to-minecraftsave/test.nbs'               # 输入的.nbs文件路径
-OUTPUT_FUNCTION = 'D:/Code/NBS-to-minecraftsave/test.mcfunction'    # 输出的mcfunction路径
+NBS_FILE_PATH = 'D:/Code/NBS-to-minecraftsave/test.nbs'                # 输入的.nbs文件路径
+OUTPUT_FUNCTION = 'D:/Code/NBS-to-minecraftsave/test.mcfunction'     # 输出的mcfunction路径
 
 # 轨道组配置 (字典格式)
 GROUP_CONFIG = {
-    # 格式：组ID: {配置字典}
     0: {
-        'base_coords': ("0", "0", "0"),  # 基准坐标 (x,y,z)
-        'layers': [0, 1, 2],             # 包含的轨道ID列表
-        'block': {                       # 方块配置
-            'base': 'iron_block',        # 基础平台方块
-            'cover': 'iron_block'             # 顶部覆盖方块
+        'base_coords': ("0", "10", "0"),   # 基准坐标 (x,y,z)
+        'layers': [0, 1, 2],              # 包含的轨道ID列表
+        'block': {                        # 方块配置
+            'base': 'iron_block',         # 基础平台方块
+            'cover': 'iron_block'              # 顶部覆盖方块
         }
     },
     1: {
-        'base_coords': ("0", "0", "20"),
+        'base_coords': ("0", "10", "20"),
         'layers': [3, 4, 5],
         'block': {
             'base': 'iron_block',
@@ -62,23 +59,25 @@ NOTEPITCH_MAPPING = {k: str(v) for v, k in enumerate(range(33, 58))}
 class GroupProcessor:
     """轨道组处理核心类"""
     
-    def __init__(self, config):
+    def __init__(self, config, global_max_tick):
         """
         初始化轨道组处理器
-        :param config: 组配置字典，包含：
-            - base_coords: 基准坐标 (x,y,z)
-            - layers: 轨道ID列表
-            - block: 方块配置 {base: 基础方块, cover: 顶部方块}
+        :param config: 组配置字典
+        :param global_max_tick: 音乐总长度(tick)
         """
+        # 坐标和方块配置
         self.base_x, self.base_y, self.base_z = map(int, config['base_coords'])
-        self.layers = set(config['layers'])
         self.base_block = config['block']['base']
         self.cover_block = config['block']['cover']
         
-        # 预处理数据
-        self.notes = []          # 本组所有音符（按tick排序）
-        self.max_tick = 0        # 本组最大tick值
-        self.tick_status = defaultdict(lambda: {'left': False, 'right': False})  # 记录平台生成状态
+        # 轨道和状态配置
+        self.layers = set(config['layers'])
+        self.global_max_tick = global_max_tick
+        self.tick_status = defaultdict(lambda: {'left': False, 'right': False})
+        
+        # 音符数据
+        self.notes = []
+        self.group_max_tick = 0
 
     def load_notes(self, all_notes):
         """加载并预处理属于本组的音符"""
@@ -87,18 +86,21 @@ class GroupProcessor:
             key=lambda x: x.tick
         )
         if self.notes:
-            self.max_tick = max(n.tick for n in self.notes)
+            self.group_max_tick = max(n.tick for n in self.notes)
+        else:
+            self.group_max_tick = 0
 
     def process_group(self):
-        """处理整个轨道组的生成逻辑"""
+        """处理整个轨道组到全局最大tick"""
         current_tick = 0
-        note_ptr = 0  # 音符指针
+        note_ptr = 0
         
-        while current_tick <= self.max_tick:
-            # 步骤1：生成基础结构
+        # 遍历所有tick直到全局最大长度
+        while current_tick <= self.global_max_tick:
+            # 无论是否有音符都生成基础结构
             self._generate_base_structures(current_tick)
             
-            # 步骤2：处理当前tick的所有音符
+            # 收集当前tick的有效音符
             active_notes = []
             while note_ptr < len(self.notes) and self.notes[note_ptr].tick == current_tick:
                 active_notes.append(self.notes[note_ptr])
@@ -137,27 +139,27 @@ class GroupProcessor:
         self._write_commands(commands)
 
     def _generate_pan_platform(self, tick, direction):
-        """生成声像偏移平台 (direction: 1=右, -1=左)"""
+        """生成声像偏移平台"""
         if self.tick_status[tick]['right' if direction == 1 else 'left']:
-            return  # 已生成
-        
-        x = self.base_x + tick * 2
-        pan = self._get_max_pan(tick, direction)
-        if pan == 0:
             return
         
-        # 计算平台参数
+        max_pan = self._get_max_pan(tick, direction)
+        if max_pan == 0:
+            return
+        
+        x = self.base_x + tick * 2
         z_start = self.base_z
-        z_end = self.base_z + pan - (1 if direction == 1 else -1)
+        z_end = self.base_z + max_pan - (1 if direction == 1 else -1)
+        
         platform_cmds = [
             f"fill {x} {self.base_y-1} {z_start} {x} {self.base_y-1} {z_end} {self.base_block}",
             f"setblock {x} {self.base_y} {z_start} {self.cover_block}"
         ]
         
-        # 生成红石线路（长度大于1时）
-        if abs(pan) > 1:
+        # 生成红石线路
+        if abs(max_pan) > 1:
             wire_start = z_start + direction
-            wire_end = z_end - direction
+            wire_end = z_end 
             platform_cmds.append(
                 f"fill {x} {self.base_y} {wire_start} {x} {self.base_y} {wire_end} redstone_wire[east=side]"
             )
@@ -171,23 +173,20 @@ class GroupProcessor:
         for note in self.notes:
             if note.tick == tick:
                 pan = self._calculate_pan(note)
-                if pan * direction > 0:  # 同方向
+                if pan * direction > 0:
                     max_pan = max(max_pan, abs(pan))
         return max_pan * direction
 
     def _generate_note_commands(self, note):
         """生成单个音符的命令"""
-        # 计算坐标
         tick_x = self.base_x + note.tick * 2
         pan = self._calculate_pan(note)
         z_pos = self.base_z + pan
         
-        # 获取音色配置
         instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
         base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "stone")
         note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
         
-        # 构建命令
         commands = [
             f"setblock {tick_x} {self.base_y} {z_pos} note_block[note={note_pitch},instrument={instrument}]",
             f"setblock {tick_x} {self.base_y-1} {z_pos} {base_block}"
@@ -213,6 +212,7 @@ def main():
     print(">>> 开始处理NBS文件...")
     song = pynbs.read(NBS_FILE_PATH)
     all_notes = song.notes
+    global_max_tick = song.header.song_length
     
     # 清空输出文件
     with open(OUTPUT_FUNCTION, 'w') as f:
@@ -220,21 +220,24 @@ def main():
     
     # 处理每个轨道组
     for group_id, config in GROUP_CONFIG.items():
-        print(f"\n>> 正在处理轨道组 {group_id}：{config['layers']}")
+        print(f"\n>> 处理轨道组 {group_id}:")
+        print(f"├─ 包含轨道: {config['layers']}")
+        print(f"├─ 基准坐标: {config['base_coords']}")
+        print(f"└─ 方块配置: {config['block']}")
         
-        # 初始化处理器
-        processor = GroupProcessor(config)
+        processor = GroupProcessor(config, global_max_tick)
         processor.load_notes(all_notes)
         
-        # 执行处理
         if processor.notes:
-            print(f"├─ 发现 {len(processor.notes)} 个音符")
-            print(f"└─ 最大tick值：{processor.max_tick}")
-            processor.process_group()
+            print(f"   ├─ 发现音符数量: {len(processor.notes)}")
+            print(f"   └─ 组内最大tick: {processor.group_max_tick}")
         else:
-            print("└─ 警告：未找到该组的音符")
+            print("   └─ 警告: 未找到该组的音符")
+        
+        processor.process_group()
     
-    print("\n>>> 处理完成！输出文件：" + OUTPUT_FUNCTION)
+    print(f"\n>>> 处理完成！总音乐长度: {global_max_tick} ticks")
+    print(f"输出文件: {OUTPUT_FUNCTION}")
 
 if __name__ == "__main__":
     main()
