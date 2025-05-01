@@ -1,357 +1,240 @@
-import sys
+
+
 import pynbs
+from collections import defaultdict
 
-# 读取 NBS 文件
-demo_song = pynbs.read('D:/Code/NBS-to-minecraftsave/test.nbs')
-length = demo_song.header.song_length
-Generator_layer=int(0)
-Generator_layer_group=int(1)
-#从第0轨道开始生成（第0对应nbs第一条）
+# --------------------------
+# 用户配置区 (按需修改)
+# --------------------------
 
-# command
-x, y, z = "0", "0", "0"
-x_int, y_int, z_int = (int(v) for v in (x, y, z))
+# 文件路径配置
+NBS_FILE_PATH = 'D:/Code/NBS-to-minecraftsave/test.nbs'               # 输入的.nbs文件路径
+OUTPUT_FUNCTION = 'D:/Code/NBS-to-minecraftsave/test.mcfunction'    # 输出的mcfunction路径
 
-x_length = x_int + length
-
-blockdown = "iron_block"
-blockup = "iron_block"
-tick_status = {}
-
-# 创建音色映射
-instrument_mapping = {
-    0: "harp",
-    1: "bass",
-    2: "basedrum",
-    3: "snare",
-    4: "hat",
-    5: "guitar",
-    6: "flute",
-    7: "bell",
-    8: "chime",
-    9: "xylophone",
-    10: "iron_xylophone",
-    11: "cow_bell",
-    12: "didgeridoo",
-    13: "bit",
-    14: "banjo",
-    15: "pling",
+# 轨道组配置 (字典格式)
+GROUP_CONFIG = {
+    # 格式：组ID: {配置字典}
+    0: {
+        'base_coords': ("0", "0", "0"),  # 基准坐标 (x,y,z)
+        'layers': [0, 1, 2],             # 包含的轨道ID列表
+        'block': {                       # 方块配置
+            'base': 'iron_block',        # 基础平台方块
+            'cover': 'iron_block'             # 顶部覆盖方块
+        }
+    },
+    1: {
+        'base_coords': ("0", "0", "20"),
+        'layers': [3, 4, 5],
+        'block': {
+            'base': 'iron_block',
+            'cover': 'iron_block'
+        }
+    }
 }
 
-# 创建方块映射
-instrument_downblock_mapping = {
-    0: "dirt",
-    1: "oak_planks",
-    2: "stone",
-    3: "sand",
-    4: "glass",
-    5: "white_wool",
-    6: "clay",
-    7: "gold_block",
-    8: "packed_ice",
-    9: "bone_block",
-    10: "iron_block",
-    11: "soul_sand",
-    12: "pumpkin",
-    13: "emerald_block",
-    14: "hay_block",
-    15: "glowstone",
+# --------------------------
+# 常量映射表 (通常无需修改)
+# --------------------------
+
+# 乐器到音符盒音色映射
+INSTRUMENT_MAPPING = {
+    0: "harp", 1: "bass", 2: "basedrum", 3: "snare", 4: "hat",
+    5: "guitar", 6: "flute", 7: "bell", 8: "chime", 9: "xylophone",
+    10: "iron_xylophone", 11: "cow_bell", 12: "didgeridoo", 13: "bit",
+    14: "banjo", 15: "pling"
 }
-#音符盒音高
-notepitch_mapping = {39: "6",38: "5",37: "4",36: "3",35: "2",34: "1",33: "0",40: "7",41: "8",42: "9",43: "10",44: "11",45: "12",46: "13",47: "14",48: "15",49: "16",50: "17",51: "18",52: "19",53: "20",54: "21",55: "22",56: "23",57: "24",}
-# 初始化 current_tick
-current_tick = 0
-i = 0
-note_count = len(demo_song.notes)
-layer = demo_song.notes[i].layer
-# 遍历所有 tick
-while current_tick <= length :
-    has_note = False  # 标志是否找到第一层音符
-    initial_i = i
-    tick_status[current_tick] = {'P_L': 0, 'P_R': 0}
-    #这里的tick_status是要为下面的多轨做判断，P_L为left P_R为right
 
-    while i < note_count and demo_song.notes[i].tick ==current_tick:
-        if demo_song.notes[i].layer == Generator_layer:#Generator_layer为轨道，0对于nbs第一轨道，1对应第二
-        
-        
-            with open('D:/Code/NBS-to-minecraftsave/test.mcfunction', 'a') as file:
-            # 如果当前 note 存在于当前 tick，生成命令
-                notetick = demo_song.notes[i].tick
-                x_tick = x_int + notetick*2
-                x_intdown= x_int-1
-                y_intdown = y_int + -1
-                #垫块，保持高度统一
-                #这里精简代码删除了这个，以后可能继续用
-                z_tick = z_int + notetick*2
-                pitch = demo_song.notes[i].key
-                timbre = demo_song.notes[i].instrument
-                pan_fill=int(round(demo_song.notes[i].panning/10,0))
-                z_pan=pan_fill+z_int
-                #这里获取带pan的坐标，如果panfill为0，那么就和zint一样了，pan有值的话就左右坐标
-                #这里保险起见，我还是用了round以防止出问题
+# 乐器对应下方块类型
+INSTRUMENT_BLOCK_MAPPING = {
+    0: "dirt", 1: "oak_planks", 2: "stone", 3: "sand", 4: "glass",
+    5: "white_wool", 6: "clay", 7: "gold_block", 8: "packed_ice",
+    9: "bone_block", 10: "iron_block", 11: "soul_sand", 12: "pumpkin",
+    13: "emerald_block", 14: "hay_block", 15: "glowstone"
+}
 
+# 音高映射表 (MIDI键到游戏音高)
+NOTEPITCH_MAPPING = {k: str(v) for v, k in enumerate(range(33, 58))}
 
+# --------------------------
+# 轨道组处理器类
+# --------------------------
 
-                # 获取音色字符
-                timbre_char = instrument_mapping.get(timbre, "unknown")
-                # 获取下方块字符
-                instrument_downblock = instrument_downblock_mapping.get(timbre, "unknown")
-                pitch1 = notepitch_mapping.get(pitch, "unknown")
-
-                # 生成命令
-                commanddown=f"setblock {x_tick-1} {y_intdown} {z_int} {blockdown}"
-                command1 = f"setblock {x_tick} {y_int} {z_pan} note_block[note={pitch1},instrument={timbre_char}]"
-                #生成音符盒
-                command2 = f"setblock {x_tick} {y_intdown} {z_pan} {instrument_downblock}"
-                commands = [command2]
-
-                # 当为沙子时自动追加屏障命令
-                if instrument_downblock == "sand":
-                    # 生成屏障命令（y轴位置下移一层）
-                    commands.append(f"setblock {x_tick} {y_intdown-1} {z_pan} barrier")
-
-                # 最终合并命令
-                final_command = "\n".join(commands)
-                #音符盒下面的垫块↑
-                commandredstone= f"setblock {x_tick-1} {y_int} {z_int} repeater[delay=1,facing=west]"
-                print(notetick)
-                print(commanddown)
-                print(command1)
-                print(command2)
-                print(commandredstone)
-
-                # 当需要生成平台填充指令时（pan_fill非零时执行）
-                if pan_fill != 0:
-                    # 判断填充方向：正方向（z轴+）为1，负方向（z轴-）为-1
-                    direction = 1 if pan_fill > 0 else -1
-                    
-                    # 获取填充格数的绝对值用于逻辑判断
-                    abs_pan = abs(pan_fill)
-                    
-                    # 计算底部方块的z轴终点坐标（根据方向调整）
-                    z_end = z_pan - direction
-                    
-                    # 生成底部方块填充命令（处理y_int-1层）
-                    # 示例：fill x 5 z1 x 5 z2 stone
-                    commandfillpan = f"fill {x_tick} {y_int-1} {z_int} {x_tick} {y_int-1} {z_end} {blockdown}"
-                    
-                    # 生成顶部起始方块设置命令（处理y_int层）
-                    # 示例：setblock x 6 z1 stone
-                    cd_setuppan = f"setblock {x_tick} {y_int} {z_int} {blockup}"
-                    
-                    # 初始化命令列表（包含基础的两个命令）
-                    commands = [commandfillpan, cd_setuppan]
-                    if direction == 1:
-                        tick_status[current_tick]['P_L'] = 1
-                    elif direction == -1:
-                        tick_status[current_tick]['P_R'] = 1
-                    
-                    # 当需要铺设红石线时（原逻辑中 pan_fill绝对值>1）
-                    if abs_pan > 1:
-                        # 计算红石线起点（起始坐标+方向偏移）
-                        start_z = z_int + direction
-                        
-                        # 计算红石线终点（终点坐标-方向偏移）
-                        end_z = z_pan - direction
-                        
-                        # 生成红石线填充命令（处理y_int层）
-                        # 示例：fill x 6 z1+1 x 6 z2-1 redstone_wire
-                        redstone_cmd = f"fill {x_tick} {y_int} {start_z} {x_tick} {y_int} {end_z} minecraft:redstone_wire[east=side]"
-                        
-                        # 将红石命令加入列表
-                        commands.append(redstone_cmd)
-                    
-                    # 将命令列表合并为多行字符串写入文件
-                    # 使用换行符连接，最后追加一个换行保持格式统一
-                    
-                    file.write("\n".join(commands) + "\n")
-                    
-
-                layer = demo_song.notes[i].layer
-                file.write(commanddown+"\n"+command1+"\n"+final_command+"\n"+commandredstone+"\n")
-
-                    # 移动到下一个音符
-                has_note = True
-                break
-        i += 1
-
-
-            
-    if not has_note:
-                with open('D:/Code/NBS-to-minecraftsave/test.mcfunction', 'a') as file:
-                    x_air = x_int + current_tick*2
-                    y_air = y_int + -1
-                    x_air1 = x_air-1
-                    y_air1= y_air-1
-
-                    z_air = z_int + current_tick*2
-                    commandfillup= f"setblock {x_air} {y_int} {z_int} {blockup}"
-                    commandfilldown= f"setblock {x_air} {y_air} {z_int} {blockdown}"
-                    commandredstoneair= f"setblock {x_air1} {y_int} {z_int} repeater[delay=1,facing=west]"
-                    commandredstoneair1= f"setblock {x_air1} {y_air} {z_int} {blockdown}"
-                    print(commandfillup)
-                    print(commandfilldown)
-                    print(commandredstoneair)
-                    print(commandredstoneair1)
-                    print("done")
-                    file.write(commandfillup+"\n"+commandfilldown+"\n"+commandredstoneair+"\n"+commandredstoneair1+"\n")
-                    
-                    print(current_tick,"当前tick")
-                    print(i,"当前i")
-    while i < note_count and demo_song.notes[i].tick == current_tick:
-        i += 1
-    current_tick += 1
-Generator_layer=Generator_layer+1
-Generator_layer_group=Generator_layer_group+1
-#重置状态，进行下一轮左右轨道判断
-
-
-
-
-current_tick = 0
-i = 0
-layer = demo_song.notes[i].layer
-
-while current_tick <= length and Generator_layer_group<= 3 :
-    has_note = False  # 标志是否找到第一层音符
-    initial_i = i
-    #这里的tick_status是要为下面的多轨做判断，P_L为left P_R为right
-
-    while i < note_count and demo_song.notes[i].tick ==current_tick:
-        if demo_song.notes[i].layer == Generator_layer:#这里的0是要生成的轨道编号，0对应第一条轨道，1对应第二条，以此类推
-        
-        
-            with open('D:/Code/NBS-to-minecraftsave/test.mcfunction', 'a') as file:
-            # 如果当前 note 存在于当前 tick，生成命令
-                notetick = demo_song.notes[i].tick
-                x_tick = x_int + notetick*2
-                x_intdown= x_int-1
-                y_intdown = y_int + -1
-                #垫块，保持高度统一
-                #这里精简代码删除了这个，以后可能继续用
-                z_tick = z_int + notetick*2
-                pitch = demo_song.notes[i].key
-                timbre = demo_song.notes[i].instrument
-                pan_fill=int(round(demo_song.notes[i].panning/10,0))
-                z_pan=pan_fill+z_int
-                #这里获取带pan的坐标，如果panfill为0，那么就和zint一样了，pan有值的话就左右坐标
-                #这里保险起见，我还是用了round以防止出问题
-
-
-
-                # 获取音色字符
-                timbre_char = instrument_mapping.get(timbre, "unknown")
-                # 获取下方块字符
-                instrument_downblock = instrument_downblock_mapping.get(timbre, "unknown")
-                pitch1 = notepitch_mapping.get(pitch, "unknown")
-
-                # 生成命令
-                commanddown=f"setblock {x_tick-1} {y_intdown} {z_int} {blockdown}"
-                command1 = f"setblock {x_tick} {y_int} {z_pan} note_block[note={pitch1},instrument={timbre_char}]"
-                #生成音符盒
-                command2 = f"setblock {x_tick} {y_intdown} {z_pan} {instrument_downblock}"
-                commands = [command2]
-
-                # 当为沙子时自动追加屏障命令
-                if instrument_downblock == "sand":
-                    # 生成屏障命令（y轴位置下移一层）
-                    commands.append(f"setblock {x_tick} {y_intdown-1} {z_pan} barrier")
-
-                # 最终合并命令
-                final_command = "\n".join(commands)
-                #音符盒下面的垫块↑
-                commandredstone= f"setblock {x_tick-1} {y_int} {z_int} repeater[delay=1,facing=west]"
-                print(notetick)
-                print(commanddown)
-                print(command1)
-                print(command2)
-                print(commandredstone)
-
-                # 当需要生成平台填充指令时（pan_fill非零时执行）
-                if pan_fill != 0:
-                    # 判断填充方向：正方向（z轴+）为1，负方向（z轴-）为-1
-                    direction = 1 if pan_fill > 0 else -1
-                    
-                    # 获取填充格数的绝对值用于逻辑判断
-                    abs_pan = abs(pan_fill)
-                    
-                    # 计算底部方块的z轴终点坐标（根据方向调整）
-                    z_end = z_pan - direction
-                    
-                    # 生成底部方块填充命令（处理y_int-1层）
-                    # 示例：fill x 5 z1 x 5 z2 stone
-                    commandfillpan = f"fill {x_tick} {y_int-1} {z_int} {x_tick} {y_int-1} {z_end} {blockdown}"
-                    
-                    # 生成顶部起始方块设置命令（处理y_int层）
-                    # 示例：setblock x 6 z1 stone
-                    cd_setuppan = f"setblock {x_tick} {y_int} {z_int} {blockup}"
-                    
-                    # 初始化命令列表（包含基础的两个命令）
-                    commands = [commandfillpan, cd_setuppan]
-                    if direction == 1:
-                        tick_status[current_tick]['P_L'] = 1
-                    elif direction == -1:
-                        tick_status[current_tick]['P_R'] = 1
-                    
-                    # 当需要铺设红石线时（原逻辑中 pan_fill绝对值>1）
-                    if abs_pan > 1:
-                        # 计算红石线起点（起始坐标+方向偏移）
-                        start_z = z_int + direction
-                        
-                        # 计算红石线终点（终点坐标-方向偏移）
-                        end_z = z_pan - direction
-                        
-                        # 生成红石线填充命令（处理y_int层）
-                        # 示例：fill x 6 z1+1 x 6 z2-1 redstone_wire
-                        redstone_cmd = f"fill {x_tick} {y_int} {start_z} {x_tick} {y_int} {end_z} minecraft:redstone_wire[east=side]"
-                        
-                        # 将红石命令加入列表
-                        commands.append(redstone_cmd)
-                    
-                    # 将命令列表合并为多行字符串写入文件
-                    # 使用换行符连接，最后追加一个换行保持格式统一
-                    
-                    file.write("\n".join(commands) + "\n")
-                    
-
-                layer = demo_song.notes[i].layer
-                file.write(commanddown+"\n"+command1+"\n"+final_command+"\n"+commandredstone+"\n")
-
-                    # 移动到下一个音符
-                has_note = True
-                break
-        i += 1
-
-
-            
-    if not has_note:
-                with open('D:/Code/NBS-to-minecraftsave/test.mcfunction', 'a') as file:
-                    x_air = x_int + current_tick*2
-                    y_air = y_int + -1
-                    x_air1 = x_air-1
-                    y_air1= y_air-1
-
-                    z_air = z_int + current_tick*2
-                    commandredstoneair= f"setblock {x_air1} {y_int} {z_int} repeater[delay=1,facing=west]"
-                    commandredstoneair1= f"setblock {x_air1} {y_air} {z_int} {blockdown}"
-                    print(commandfillup)
-                    print(commandfilldown)
-                    print(commandredstoneair)
-                    print(commandredstoneair1)
-                    print("done")
-                    #file.write(commandfillup+"\n"+commandfilldown+"\n"+commandredstoneair+"\n"+commandredstoneair1+"\n")
-                    
-                    print(current_tick,"当前tick")
-                    print(i,"当前i")
-    while i < note_count and demo_song.notes[i].tick == current_tick:
-        i += 1
-    current_tick += 1
-    Generator_layer_group=Generator_layer_group+1
-    Generator_layer=Generator_layer+1
-
+class GroupProcessor:
+    """轨道组处理核心类"""
     
-            
+    def __init__(self, config):
+        """
+        初始化轨道组处理器
+        :param config: 组配置字典，包含：
+            - base_coords: 基准坐标 (x,y,z)
+            - layers: 轨道ID列表
+            - block: 方块配置 {base: 基础方块, cover: 顶部方块}
+        """
+        self.base_x, self.base_y, self.base_z = map(int, config['base_coords'])
+        self.layers = set(config['layers'])
+        self.base_block = config['block']['base']
+        self.cover_block = config['block']['cover']
+        
+        # 预处理数据
+        self.notes = []          # 本组所有音符（按tick排序）
+        self.max_tick = 0        # 本组最大tick值
+        self.tick_status = defaultdict(lambda: {'left': False, 'right': False})  # 记录平台生成状态
 
-    # 增加 current_tick
-print("Done")
+    def load_notes(self, all_notes):
+        """加载并预处理属于本组的音符"""
+        self.notes = sorted(
+            [n for n in all_notes if n.layer in self.layers],
+            key=lambda x: x.tick
+        )
+        if self.notes:
+            self.max_tick = max(n.tick for n in self.notes)
+
+    def process_group(self):
+        """处理整个轨道组的生成逻辑"""
+        current_tick = 0
+        note_ptr = 0  # 音符指针
+        
+        while current_tick <= self.max_tick:
+            # 步骤1：生成基础结构
+            self._generate_base_structures(current_tick)
+            
+            # 步骤2：处理当前tick的所有音符
+            active_notes = []
+            while note_ptr < len(self.notes) and self.notes[note_ptr].tick == current_tick:
+                active_notes.append(self.notes[note_ptr])
+                note_ptr += 1
+            
+            # 协调生成声像平台
+            pan_directions = set()
+            for note in active_notes:
+                pan = self._calculate_pan(note)
+                if pan != 0:
+                    pan_directions.add(1 if pan > 0 else -1)
+            
+            # 优先生成左侧平台
+            for direction in sorted(pan_directions, reverse=True):
+                self._generate_pan_platform(current_tick, direction)
+            
+            # 生成音符命令
+            for note in active_notes:
+                self._generate_note_commands(note)
+            
+            current_tick += 1
+
+    def _calculate_pan(self, note):
+        """计算声像偏移值"""
+        return int(round(note.panning / 10))
+
+    def _generate_base_structures(self, tick):
+        """生成每个tick的基础结构"""
+        x = self.base_x + tick * 2
+        commands = [
+            f"setblock {x} {self.base_y} {self.base_z} {self.cover_block}",
+            f"setblock {x} {self.base_y-1} {self.base_z} {self.base_block}",
+            f"setblock {x-1} {self.base_y} {self.base_z} repeater[delay=1,facing=west]",
+            f"setblock {x-1} {self.base_y-1} {self.base_z} {self.base_block}"
+        ]
+        self._write_commands(commands)
+
+    def _generate_pan_platform(self, tick, direction):
+        """生成声像偏移平台 (direction: 1=右, -1=左)"""
+        if self.tick_status[tick]['right' if direction == 1 else 'left']:
+            return  # 已生成
+        
+        x = self.base_x + tick * 2
+        pan = self._get_max_pan(tick, direction)
+        if pan == 0:
+            return
+        
+        # 计算平台参数
+        z_start = self.base_z
+        z_end = self.base_z + pan - (1 if direction == 1 else -1)
+        platform_cmds = [
+            f"fill {x} {self.base_y-1} {z_start} {x} {self.base_y-1} {z_end} {self.base_block}",
+            f"setblock {x} {self.base_y} {z_start} {self.cover_block}"
+        ]
+        
+        # 生成红石线路（长度大于1时）
+        if abs(pan) > 1:
+            wire_start = z_start + direction
+            wire_end = z_end - direction
+            platform_cmds.append(
+                f"fill {x} {self.base_y} {wire_start} {x} {self.base_y} {wire_end} redstone_wire[east=side]"
+            )
+        
+        self._write_commands(platform_cmds)
+        self.tick_status[tick]['right' if direction ==1 else 'left'] = True
+
+    def _get_max_pan(self, tick, direction):
+        """获取当前tick指定方向的最大偏移值"""
+        max_pan = 0
+        for note in self.notes:
+            if note.tick == tick:
+                pan = self._calculate_pan(note)
+                if pan * direction > 0:  # 同方向
+                    max_pan = max(max_pan, abs(pan))
+        return max_pan * direction
+
+    def _generate_note_commands(self, note):
+        """生成单个音符的命令"""
+        # 计算坐标
+        tick_x = self.base_x + note.tick * 2
+        pan = self._calculate_pan(note)
+        z_pos = self.base_z + pan
+        
+        # 获取音色配置
+        instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
+        base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "stone")
+        note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
+        
+        # 构建命令
+        commands = [
+            f"setblock {tick_x} {self.base_y} {z_pos} note_block[note={note_pitch},instrument={instrument}]",
+            f"setblock {tick_x} {self.base_y-1} {z_pos} {base_block}"
+        ]
+        
+        # 沙子特殊处理
+        if base_block == "sand":
+            commands.append(f"setblock {tick_x} {self.base_y-2} {z_pos} barrier")
+        
+        self._write_commands(commands)
+
+    def _write_commands(self, commands):
+        """将命令写入文件"""
+        with open(OUTPUT_FUNCTION, 'a', encoding='utf-8') as f:
+            f.write("\n".join(commands) + "\n\n")
+
+# --------------------------
+# 主程序
+# --------------------------
+
+def main():
+    # 初始化
+    print(">>> 开始处理NBS文件...")
+    song = pynbs.read(NBS_FILE_PATH)
+    all_notes = song.notes
+    
+    # 清空输出文件
+    with open(OUTPUT_FUNCTION, 'w') as f:
+        f.write("\n")
+    
+    # 处理每个轨道组
+    for group_id, config in GROUP_CONFIG.items():
+        print(f"\n>> 正在处理轨道组 {group_id}：{config['layers']}")
+        
+        # 初始化处理器
+        processor = GroupProcessor(config)
+        processor.load_notes(all_notes)
+        
+        # 执行处理
+        if processor.notes:
+            print(f"├─ 发现 {len(processor.notes)} 个音符")
+            print(f"└─ 最大tick值：{processor.max_tick}")
+            processor.process_group()
+        else:
+            print("└─ 警告：未找到该组的音符")
+    
+    print("\n>>> 处理完成！输出文件：" + OUTPUT_FUNCTION)
+
+if __name__ == "__main__":
+    main()
