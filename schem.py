@@ -27,54 +27,6 @@ GROUP_CONFIG = {
             'cover': 'iron_block'              # 顶部覆盖方块
         }
     },
-    2: {
-        'base_coords': ("0", "10", "10"),   # 基准坐标 (x,y,z)
-        'layers': [8, 9, 10],              # 包含的轨道ID列表
-        'block': {                        # 方块配置
-            'base': 'iron_block',         # 基础平台方块
-            'cover': 'iron_block'              # 顶部覆盖方块
-        }
-    },
-    3: {
-        'base_coords': ("0", "10", "14"),   # 基准坐标 (x,y,z)
-        'layers': [12, 14, 15],              # 包含的轨道ID列表
-        'block': {                        # 方块配置
-            'base': 'iron_block',         # 基础平台方块
-            'cover': 'iron_block'              # 顶部覆盖方块
-        }
-    },
-    4: {
-        'base_coords': ("0", "10", "18"),   # 基准坐标 (x,y,z)
-        'layers': [16, 17, 18],              # 包含的轨道ID列表
-        'block': {                        # 方块配置
-            'base': 'iron_block',         # 基础平台方块
-            'cover': 'iron_block'              # 顶部覆盖方块
-        }
-    },
-    5: {
-        'base_coords': ("0", "10", "22"),   # 基准坐标 (x,y,z)
-        'layers': [20, 21, 22],              # 包含的轨道ID列表
-        'block': {                        # 方块配置
-            'base': 'iron_block',         # 基础平台方块
-            'cover': 'iron_block'              # 顶部覆盖方块
-        }
-    },
-    6: {
-        'base_coords': ("0", "10", "26"),   # 基准坐标 (x,y,z)
-        'layers': [24, 25, 26],              # 包含的轨道ID列表
-        'block': {                        # 方块配置
-            'base': 'iron_block',         # 基础平台方块
-            'cover': 'iron_block'              # 顶部覆盖方块
-        }
-    },
-    7: {
-        'base_coords': ("0", "10", "30"),   # 基准坐标 (x,y,z)
-        'layers': [27, 28, 29],              # 包含的轨道ID列表
-        'block': {                        # 方块配置
-            'base': 'iron_block',         # 基础平台方块
-            'cover': 'iron_block'              # 顶部覆盖方块
-        }
-    },
 }
 
 # --------------------------
@@ -230,6 +182,7 @@ class GroupProcessor:
         pan = self._calculate_pan(note)
         
         # ✅ layer 기반 z-offset 적용
+        # 感谢大佬添加的z_offset，具体功能会在released里说明
         z_layer_offset = self.layer_z_offsets.get(note.layer, 0)
         z_pos = self.base_z + pan + z_layer_offset
         
@@ -272,7 +225,7 @@ def main():
     for group_id, config in GROUP_CONFIG.items():
         output_path = f"group_{group_id}.mcfunction"
     
-    # 출력 파일 초기화
+    # 输出文件初始化
         with open(output_path, 'w') as f:
             f.write("\n")
         print(f"\n>> 处理轨道组 {group_id}:")
