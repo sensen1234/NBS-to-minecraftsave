@@ -1,4 +1,3 @@
-
 import pynbs
 from collections import defaultdict
 
@@ -6,27 +5,27 @@ from collections import defaultdict
 # 用户配置区 (按需修改)
 # --------------------------
 
-NBS_FILE_PATH = 'main.nbs'                # 输入的.nbs文件路径
-OUTPUT_FUNCTION = 'main.mcfunction'     # 输出的mcfunction路径
+NBS_FILE_PATH = 'D:/Code/NBS-to-minecraftsave/test.nbs'                # 输入的.nbs文件路径
+OUTPUT_FUNCTION = 'D:/Code/NBS-to-minecraftsave/test.mcfunction'     # 输出的mcfunction路径
 
 # 轨道组配置 (字典格式)
 GROUP_CONFIG = {
     0: {
-        'base_coords': ("0", "10", "2"),   # 基准坐标 (x,y,z)
-        'layers': [0, 1, 2],              # 包含的轨道ID列表
+        'base_coords': ("0", "70", "0"),   # 基准坐标 (x,y,z)
+        'layers': [1,2,3],              # 包含的轨道ID列表
         'block': {                        # 方块配置
             'base': 'iron_block',         # 基础平台方块
             'cover': 'iron_block'              # 顶部覆盖方块
         }
     },
     1: {
-        'base_coords': ("0", "10", "6"),   # 基准坐标 (x,y,z)
-        'layers': [4, 5, 7],              # 包含的轨道ID列表
-        'block': {                        # 方块配置
-            'base': 'iron_block',         # 基础平台方块
-            'cover': 'iron_block'              # 顶部覆盖方块
+        'base_coords': ("0", "70", "20"),
+        'layers': [1,2],
+        'block': {
+            'base': 'iron_block',
+            'cover': 'iron_block'
         }
-    },
+    }
 }
 
 # --------------------------
@@ -59,25 +58,25 @@ NOTEPITCH_MAPPING = {k: str(v) for v, k in enumerate(range(33, 58))}
 class GroupProcessor:
     """轨道组处理核心类"""
     
-    def __init__(self, config, global_max_tick, output_path):
+    def __init__(self, config, global_max_tick):
+        """
+        初始化轨道组处理器
+        :param config: 组配置字典
+        :param global_max_tick: 音乐总长度(tick)
+        """
+        # 坐标和方块配置
         self.base_x, self.base_y, self.base_z = map(int, config['base_coords'])
         self.base_block = config['block']['base']
         self.cover_block = config['block']['cover']
         
+        # 轨道和状态配置
         self.layers = set(config['layers'])
         self.global_max_tick = global_max_tick
         self.tick_status = defaultdict(lambda: {'left': False, 'right': False})
         
+        # 音符数据
         self.notes = []
         self.group_max_tick = 0
-        
-        self.output_path = output_path  # <- 추가된 부분
-        self.layer_z_offsets = {
-            layer: i - len(config['layers']) // 2
-            for i, layer in enumerate(sorted(config['layers']))
-}
-
-
 
     def load_notes(self, all_notes):
         """加载并预处理属于本组的音符"""
@@ -178,14 +177,11 @@ class GroupProcessor:
         return max_pan * direction
 
     def _generate_note_commands(self, note):
+        """生成单个音符的命令"""
         tick_x = self.base_x + note.tick * 2
         pan = self._calculate_pan(note)
-        
-        # ✅ layer 기반 z-offset 적용
-        # 感谢大佬添加的z_offset，具体功能会在released里说明
-        z_layer_offset = self.layer_z_offsets.get(note.layer, 0)
-        z_pos = self.base_z + pan + z_layer_offset
-        
+        z_pos = self.base_z + pan
+
         instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
         base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "stone")
         note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
@@ -195,16 +191,16 @@ class GroupProcessor:
             f"setblock {tick_x} {self.base_y-1} {z_pos} {base_block}"
         ]
         
+        # 沙子特殊处理
         if base_block == "sand":
             commands.append(f"setblock {tick_x} {self.base_y-2} {z_pos} barrier")
         
         self._write_commands(commands)
-        
 
     def _write_commands(self, commands):
-        with open(self.output_path, 'a', encoding='utf-8') as f:
+        """将命令写入文件"""
+        with open(OUTPUT_FUNCTION, 'a', encoding='utf-8') as f:
             f.write("\n".join(commands) + "\n\n")
-
 
 # --------------------------
 # 主程序
@@ -223,17 +219,12 @@ def main():
     
     # 处理每个轨道组
     for group_id, config in GROUP_CONFIG.items():
-        output_path = f"group_{group_id}.mcfunction"
-    
-    # 输出文件初始化
-        with open(output_path, 'w') as f:
-            f.write("\n")
         print(f"\n>> 处理轨道组 {group_id}:")
         print(f"├─ 包含轨道: {config['layers']}")
         print(f"├─ 基准坐标: {config['base_coords']}")
         print(f"└─ 方块配置: {config['block']}")
         
-        processor = GroupProcessor(config, global_max_tick, output_path)
+        processor = GroupProcessor(config, global_max_tick)
         processor.load_notes(all_notes)
         
         if processor.notes:
