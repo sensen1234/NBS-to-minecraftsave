@@ -10,7 +10,7 @@ from collections import defaultdict
 GENERATE_CONFIG = {
     'data_version': Version.JE_1_21_4, # Minecraft version
     'input_file': 'test.nbs',  # 输入的.nbs文件路径
-    'type': 'schematic', # schematic -> WorldEdit文件, mcfunction -> 原版函数
+    'type': 'mcfunction', # schematic -> WorldEdit文件, mcfunction -> 原版函数
     'output_file': 'test' # 输出的文件 (不包含扩展名)
 }
 
@@ -349,7 +349,7 @@ def main():
 
     if GENERATE_CONFIG['type'] == 'schematic':
         processor = SchematicProcessor(all_notes, global_max_tick)
-    elif GENERATE_CONFIG['type'] == 'litematica':
+    elif GENERATE_CONFIG['type'] == 'mcfunction':
         processor = McFunctionProcessor(all_notes, global_max_tick)
     else:
         print(f"配置文件错误, 未找到可用的 \"{GENERATE_CONFIG['type']}\" 实现")
