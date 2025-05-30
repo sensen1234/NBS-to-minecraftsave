@@ -1,4 +1,5 @@
 import pynbs
+import os
 from mcschematic import Version, MCSchematic
 from collections import defaultdict
 
@@ -137,7 +138,6 @@ class GroupProcessor:
             [n for n in all_notes if n.layer in self.layers],
             key=lambda x: x.tick
         )
-        print(self.notes)
         if self.notes:
             self.group_max_tick = max(n.tick for n in self.notes)
         else:
@@ -190,6 +190,13 @@ class GroupProcessor:
 
 
 class McFunctionProcessor(GroupProcessor):
+    def __init__(self, all_notes, global_max_tick):
+        # 清空输出文件
+        path = GENERATE_CONFIG['output_file'] + ".mcfunction"
+        if os.path.exists(path):
+            os.remove(path)
+        super().__init__(all_notes, global_max_tick)
+
     def _generate_base_structures(self, tick):
         """生成每个tick的基础结构"""
         x = self.base_x + tick * 2
@@ -258,6 +265,10 @@ class McFunctionProcessor(GroupProcessor):
 
 class SchematicProcessor(GroupProcessor):
     def __init__(self, all_notes, global_max_tick):
+        # 清空输出文件
+        path = GENERATE_CONFIG['output_file'] + ".schem"
+        if os.path.exists(path):
+            os.remove(path)
         super().__init__(all_notes, global_max_tick)
         self.schem: MCSchematic = MCSchematic()
         self.regions = {}
@@ -342,10 +353,6 @@ def main():
     song = pynbs.read(GENERATE_CONFIG['input_file'])
     all_notes = song.notes
     global_max_tick = song.header.song_length
-
-    # 清空输出文件
-    with open(GENERATE_CONFIG['output_file'], 'w') as f:
-        f.write("\n")
 
     if GENERATE_CONFIG['type'] == 'schematic':
         processor = SchematicProcessor(all_notes, global_max_tick)
