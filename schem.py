@@ -151,7 +151,7 @@ class GroupProcessor:
                 active_notes.append(self.notes[note_ptr])
                 note_ptr += 1
 
-            # 检测音符位置冲突 (新增部分)
+            # 检测音符位置冲突
             occupied_positions = set()
             for note in active_notes:
                 pan = _calculate_pan(note)
@@ -327,8 +327,7 @@ class SchematicProcessor(GroupProcessor):
         base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
         note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
 
-        self.schem.setBlock((tick_x, self.base_y, z_pos),
-                            f"minecraft:note_block[note={note_pitch},instrument={instrument}]")
+        self.schem.setBlock((tick_x, self.base_y, z_pos),f"minecraft:note_block[note={note_pitch},instrument={instrument}]")
         self.schem.setBlock((tick_x, self.base_y - 1, z_pos), self.base_block)
 
         # 沙子特殊处理
