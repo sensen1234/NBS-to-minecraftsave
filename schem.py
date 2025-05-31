@@ -1,5 +1,4 @@
 import pynbs
-import os
 from mcschematic import Version, MCSchematic
 from collections import defaultdict
 
@@ -9,30 +8,22 @@ from collections import defaultdict
 
 # 生成配置 (字典格式)
 GENERATE_CONFIG = {
-    'data_version': Version.JE_1_21_4, # Minecraft version
+    'data_version': Version.JE_1_21_4,  # Minecraft version
     'input_file': 'test.nbs',  # 输入的.nbs文件路径
-    'type': 'mcfunction', # schematic -> WorldEdit文件, mcfunction -> 原版函数
-    'output_file': 'test' # 输出的文件 (不包含扩展名)
+    'type': 'schematic',  # schematic -> WorldEdit文件, mcfunction -> 原版函数
+    'output_file': 'test'  # 输出的文件 (不包含扩展名)
 }
 
 # 轨道组配置 (字典格式)
 GROUP_CONFIG = {
     0: {
         'base_coords': ("0", "0", "0"),  # 基准坐标 (x,y,z)
-        'layers': [0],  # 包含的轨道ID列表
+        'layers': [0, 1],  # 包含的轨道ID列表
         'block': {  # 方块配置
             'base': 'minecraft:iron_block',  # 基础平台方块
             'cover': 'minecraft:iron_block'  # 顶部覆盖方块
         }
     },
-    1: {
-        'base_coords': ("0", "0", "20"),
-        'layers': [1, 2, 3, 4, 5, 6, 7, 8],
-        'block': {
-            'base': 'minecraft:iron_block',
-            'cover': 'minecraft:iron_block'
-        }
-    }
 }
 
 # --------------------------
@@ -51,7 +42,7 @@ INSTRUMENT_MAPPING = {
 INSTRUMENT_BLOCK_MAPPING = {
     0: "minecraft:dirt", 1: "minecraft:oak_planks", 2: "minecraft:stone", 3: "minecraft:sand",
     4: "minecraft:glass", 5: "minecraft:white_wool", 6: "minecraft:clay", 7: "minecraft:gold_block",
-    8: "minecraft:packed_ice",9: "minecraft:bone_block", 10: "minecraft:iron_block", 11: "minecraft:soul_sand",
+    8: "minecraft:packed_ice", 9: "minecraft:bone_block", 10: "minecraft:iron_block", 11: "minecraft:soul_sand",
     12: "minecraft:pumpkin", 13: "minecraft:emerald_block", 14: "minecraft:hay_block", 15: "minecraft:glowstone"
 }
 
@@ -78,11 +69,13 @@ def _get_max_pan(notes, tick, direction):
                 max_pan = max(max_pan, abs(pan))
     return max_pan * direction
 
+
 # --------------------------
 # 轨道组处理器类
 # --------------------------
 class GroupProcessor:
     """轨道组处理核心类"""
+
     def __init__(self, all_notes, global_max_tick):
         """
         初始化轨道组处理器
@@ -131,7 +124,6 @@ class GroupProcessor:
 
             self.process_group()
 
-
     def load_notes(self, all_notes):
         """加载并预处理属于本组的音符"""
         self.notes = sorted(
@@ -158,6 +150,21 @@ class GroupProcessor:
             while note_ptr < len(self.notes) and self.notes[note_ptr].tick == current_tick:
                 active_notes.append(self.notes[note_ptr])
                 note_ptr += 1
+
+            # 检测音符位置冲突 (新增部分)
+            occupied_positions = set()
+            for note in active_notes:
+                pan = _calculate_pan(note)
+                z_pos = self.base_z + pan
+                position = (current_tick, z_pos)  # 位置标识符 (tick, z坐标)
+
+                if position in occupied_positions:
+                    # 发现位置冲突，报错并终止
+                    raise Exception(
+                        f"位置冲突! Tick {current_tick}, Z={z_pos} 位置已有音符\n"
+                        f"冲突音符: Layer={note.layer}, Key={note.key}, Instrument={note.instrument}"
+                    )
+                occupied_positions.add(position)
 
             # 协调生成声像平台
             pan_directions = set()
@@ -190,13 +197,6 @@ class GroupProcessor:
 
 
 class McFunctionProcessor(GroupProcessor):
-    def __init__(self, all_notes, global_max_tick):
-        # 清空输出文件
-        path = GENERATE_CONFIG['output_file'] + ".mcfunction"
-        if os.path.exists(path):
-            os.remove(path)
-        super().__init__(all_notes, global_max_tick)
-
     def _generate_base_structures(self, tick):
         """生成每个tick的基础结构"""
         x = self.base_x + tick * 2
@@ -263,12 +263,9 @@ class McFunctionProcessor(GroupProcessor):
         with open(GENERATE_CONFIG['output_file'] + ".mcfunction", 'a', encoding='utf-8') as f:
             f.write("\n".join(commands) + "\n\n")
 
+
 class SchematicProcessor(GroupProcessor):
     def __init__(self, all_notes, global_max_tick):
-        # 清空输出文件
-        path = GENERATE_CONFIG['output_file'] + ".schem"
-        if os.path.exists(path):
-            os.remove(path)
         super().__init__(all_notes, global_max_tick)
         self.schem: MCSchematic = MCSchematic()
         self.regions = {}
@@ -309,7 +306,6 @@ class SchematicProcessor(GroupProcessor):
         for z in range(z_start, z_end, 1):
             self.schem.setBlock((x, self.base_y - 1, z), self.base_block)
 
-
         self.schem.setBlock((x, self.base_y, z_start), self.cover_block)
 
         # 生成红石线路
@@ -331,7 +327,8 @@ class SchematicProcessor(GroupProcessor):
         base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
         note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
 
-        self.schem.setBlock((tick_x, self.base_y, z_pos), f"minecraft:note_block[note={note_pitch},instrument={instrument}]")
+        self.schem.setBlock((tick_x, self.base_y, z_pos),
+                            f"minecraft:note_block[note={note_pitch},instrument={instrument}]")
         self.schem.setBlock((tick_x, self.base_y - 1, z_pos), self.base_block)
 
         # 沙子特殊处理
@@ -350,22 +347,32 @@ class SchematicProcessor(GroupProcessor):
 def main():
     # 初始化
     print(">>> 开始处理NBS文件...")
-    song = pynbs.read(GENERATE_CONFIG['input_file'])
-    all_notes = song.notes
-    global_max_tick = song.header.song_length
+    try:
+        song = pynbs.read(GENERATE_CONFIG['input_file'])
+        all_notes = song.notes
+        global_max_tick = song.header.song_length
 
-    if GENERATE_CONFIG['type'] == 'schematic':
-        processor = SchematicProcessor(all_notes, global_max_tick)
-    elif GENERATE_CONFIG['type'] == 'mcfunction':
-        processor = McFunctionProcessor(all_notes, global_max_tick)
-    else:
-        print(f"配置文件错误, 未找到可用的 \"{GENERATE_CONFIG['type']}\" 实现")
-        return
+        # 清空输出文件
+        with open(GENERATE_CONFIG['output_file'], 'w') as f:
+            f.write("\n")
 
-    processor.process()
+        if GENERATE_CONFIG['type'] == 'schematic':
+            processor = SchematicProcessor(all_notes, global_max_tick)
+        elif GENERATE_CONFIG['type'] == 'mcfunction':
+            processor = McFunctionProcessor(all_notes, global_max_tick)
+        else:
+            print(f"配置文件错误, 未找到可用的 \"{GENERATE_CONFIG['type']}\" 实现")
+            return
 
-    print(f"\n>>> 处理完成！总音乐长度: {global_max_tick} ticks")
-    print(f"输出文件: {GENERATE_CONFIG['output_file']}")
+        processor.process()
+
+        print(f"\n>>> 处理完成！总音乐长度: {global_max_tick} ticks")
+        print(f"输出文件: {GENERATE_CONFIG['output_file']}")
+
+    except Exception as e:
+        print(f"\n>>> 处理过程中发生错误:")
+        print(f"错误信息: {str(e)}")
+        print("程序已终止")
 
 
 if __name__ == "__main__":
