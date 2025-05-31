@@ -445,8 +445,8 @@ def create_fluent_style():
     QLabel {
         color: #333333;
         font-weight: 500;
+        background-color: #ffffff;
     }
-
 
     /* 按钮 */
     QPushButton {
@@ -641,17 +641,14 @@ class FluentTabWidget(QTabWidget):
 # GUI 主窗口
 # --------------------------
 
+
+
+
 class NBSConverterGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("NBS-to-Minecraft")
         self.setGeometry(100, 100, 1000, 750)
-
-        # 设置窗口图标
-        try:
-            self.setWindowIcon(QIcon("note_block.png"))
-        except:
-            pass
 
         # 初始化配置
         self.config = {
@@ -689,19 +686,19 @@ class NBSConverterGUI(QMainWindow):
 
         # 创建标题栏
         title_layout = QHBoxLayout()
-        title_icon = QLabel()
-        try:
-            pixmap = QPixmap("note_block.png").scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio,
-                                                      Qt.TransformationMode.SmoothTransformation)
-            title_icon.setPixmap(pixmap)
-        except:
-            pass
-        title_icon.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        #title_icon = QLabel()
+        #try:
+           # pixmap = QPixmap("note_block.png").scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio,
+                                                      #Qt.TransformationMode.SmoothTransformation)
+            #title_icon.setPixmap(pixmap)
+        #except:
+            #pass
+        #title_icon.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         title_label = QLabel("NBS-to-Minecraft")
-        title_label.setStyleSheet("font-size: 20pt; font-weight: 600; color: #333333;")
+        title_label.setStyleSheet("font-size: 20pt; font-weight: 600; color: #333333; background-color: #f6f6f6;")
 
-        title_layout.addWidget(title_icon)
+        #title_layout.addWidget(title_icon)
         title_layout.addWidget(title_label)
         title_layout.addStretch()
 
