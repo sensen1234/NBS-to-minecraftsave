@@ -290,7 +290,9 @@ class SchematicProcessor(GroupProcessor):
         z_start = self.base_z
         z_end = self.base_z + max_pan - (1 if direction == 1 else -1)
 
-        for z in range(z_start, z_end, 1):
+        # 兼容 fill 指令的行为，步进方向根据 direction
+        step = 1 if direction == 1 else -1
+        for z in range(z_start, z_end + step, step):
             self.schem.setBlock((x, self.base_y - 1, z), self.base_block)
 
         self.schem.setBlock((x, self.base_y, z_start), self.cover_block)
@@ -299,7 +301,7 @@ class SchematicProcessor(GroupProcessor):
         if abs(max_pan) > 1:
             wire_start = z_start + direction
             wire_end = z_end
-            for z in range(wire_start, wire_end, 1):
+            for z in range(wire_start, wire_end + step, step):
                 self.schem.setBlock((x, self.base_y, z),
                                     "minecraft:redstone_wire[east=side,west=side]")
 
@@ -317,10 +319,10 @@ class SchematicProcessor(GroupProcessor):
 
         self.schem.setBlock((tick_x, self.base_y, z_pos),
                             f"minecraft:note_block[note={note_pitch},instrument={instrument}]")
-        self.schem.setBlock((tick_x, self.base_y - 1, z_pos), self.base_block)
+        self.schem.setBlock((tick_x, self.base_y - 1, z_pos), base_block)
 
-        # 沙子特殊处理
-        if base_block == "minecraft:sand":
+        # 沙子特殊处理（兼容 sand 和 minecraft:sand）
+        if base_block.endswith("sand"):
             self.schem.setBlock((tick_x, self.base_y - 2, z_pos), "minecraft:barrier")
 
     def _write(self, _: List[str]):
