@@ -228,22 +228,17 @@ class McFunctionProcessor(GroupProcessor):
 
     def _generate_note(self, note: Note):
         """生成单个音符的命令"""
-        tick_x = self.base_x + note.tick * 2
-        pan = self._calculate_pan(note)
-        z_pos = self.base_z + pan
-
-        instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
-        base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
-        note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
+        tick_x, y, z_pos = self.get_note_position(note)
+        instrument, base_block, note_pitch = self.get_note_block_info(note)
 
         commands = [
-            f"setblock {tick_x} {self.base_y} {z_pos} note_block[note={note_pitch},instrument={instrument}]",
-            f"setblock {tick_x} {self.base_y - 1} {z_pos} {base_block}"
+            f"setblock {tick_x} {y} {z_pos} note_block[note={note_pitch},instrument={instrument}]",
+            f"setblock {tick_x} {y - 1} {z_pos} {base_block}"
         ]
 
         # 沙子特殊处理
-        if base_block == "sand":
-            commands.append(f"setblock {tick_x} {self.base_y - 2} {z_pos} barrier")
+        if self.is_sand_block(base_block):
+            commands.append(f"setblock {tick_x} {y - 2} {z_pos} barrier")
 
         self._write(commands)
 
@@ -263,13 +258,13 @@ class SchematicProcessor(GroupProcessor):
         self.current_region = None
 
     def process(self):
+        self.validate_config()
         self.schem = MCSchematic()
         super().process()
         path = self.config['output_file']
         self.schem.save(".", path.rsplit('/', 1)[-1], self.config['data_version'])
 
     def _generate_base_structures(self, tick: int):
-        """生成每个tick的基础结构"""
         x = self.base_x + tick * 2
         self.schem.setBlock((x, self.base_y, self.base_z), self.cover_block)
         self.schem.setBlock((x, self.base_y - 1, self.base_z), self.base_block)
@@ -278,7 +273,6 @@ class SchematicProcessor(GroupProcessor):
         self.schem.setBlock((x - 1, self.base_y - 1, self.base_z), self.base_block)
 
     def _generate_pan_platform(self, tick: int, direction: int):
-        """生成声像偏移平台"""
         if self.tick_status[tick]['right' if direction == 1 else 'left']:
             return
 
@@ -289,15 +283,12 @@ class SchematicProcessor(GroupProcessor):
         x = self.base_x + tick * 2
         z_start = self.base_z
         z_end = self.base_z + max_pan - (1 if direction == 1 else -1)
-
-        # 兼容 fill 指令的行为，步进方向根据 direction
         step = 1 if direction == 1 else -1
         for z in range(z_start, z_end + step, step):
             self.schem.setBlock((x, self.base_y - 1, z), self.base_block)
 
         self.schem.setBlock((x, self.base_y, z_start), self.cover_block)
 
-        # 生成红石线路
         if abs(max_pan) > 1:
             wire_start = z_start + direction
             wire_end = z_end
@@ -308,23 +299,43 @@ class SchematicProcessor(GroupProcessor):
         self.tick_status[tick]['right' if direction == 1 else 'left'] = True
 
     def _generate_note(self, note: Note):
-        """生成单个音符"""
-        tick_x = self.base_x + note.tick * 2
-        pan = self._calculate_pan(note)
-        z_pos = self.base_z + pan
+        tick_x, y, z_pos = self.get_note_position(note)
+        instrument, base_block, note_pitch = self.get_note_block_info(note)
 
-        instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
-        base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
-        note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
-
-        self.schem.setBlock((tick_x, self.base_y, z_pos),
+        self.schem.setBlock((tick_x, y, z_pos),
                             f"minecraft:note_block[note={note_pitch},instrument={instrument}]")
-        self.schem.setBlock((tick_x, self.base_y - 1, z_pos), base_block)
+        self.schem.setBlock((tick_x, y - 1, z_pos), base_block)
 
-        # 沙子特殊处理（兼容 sand 和 minecraft:sand）
-        if base_block.endswith("sand"):
-            self.schem.setBlock((tick_x, self.base_y - 2, z_pos), "minecraft:barrier")
+        if self.is_sand_block(base_block):
+            self.schem.setBlock((tick_x, y - 2, z_pos), "minecraft:barrier")
 
     def _write(self, _: List[str]):
         self.regions[str(self.region_index)] = self.current_region
         self.region_index += 1
+
+    @staticmethod
+    def get_note_block_info(note: Note):
+        """获取音符方块的所有属性"""
+        instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
+        base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
+        note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
+        return instrument, base_block, note_pitch
+
+    @staticmethod
+    def is_sand_block(block: str) -> bool:
+        """判断是否为沙子类方块"""
+        return block.endswith("sand")
+
+    def get_note_position(self, note: Note):
+        """统一音符坐标计算"""
+        tick_x = self.base_x + note.tick * 2
+        pan = self._calculate_pan(note)
+        z_pos = self.base_z + pan
+        return tick_x, self.base_y, z_pos
+
+    def validate_config(self):
+        """配置校验"""
+        required_keys = ['output_file', 'data_version']
+        for key in required_keys:
+            if key not in self.config:
+                raise ValueError(f"配置缺失: {key}")
