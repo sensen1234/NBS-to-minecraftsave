@@ -220,7 +220,7 @@ class McFunctionProcessor(GroupProcessor):
             wire_start = z_start + direction
             wire_end = z_end
             platform_cmds.append(
-                f"fill {x} {self.base_y} {wire_start} {x} {self.base_y} {wire_end} minecraft:redstone_wire[east=side,west=side]"
+                f"fill {x} {self.base_y} {wire_start} {x} {self.base_y} {wire_end} minecraft:redstone_wire[north=side,south=side]"
             )
 
         self._write(platform_cmds)
@@ -294,7 +294,7 @@ class SchematicProcessor(GroupProcessor):
             wire_end = z_end
             for z in range(wire_start, wire_end + step, step):
                 self.schem.setBlock((x, self.base_y, z),
-                                    "minecraft:redstone_wire[east=side,west=side]")
+                                    "minecraft:redstone_wire[north=side,south=side]")
 
         self.tick_status[tick]['right' if direction == 1 else 'left'] = True
 
