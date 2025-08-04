@@ -2,6 +2,7 @@ from mcschematic import Version
 
 # --------------------------
 # 常量映射表 (通常无需修改)
+# 除非你要加一些自定义音色，那就在下面的INSTRUMENT_MAPPING和INSTRUMENT_BLOCK_MAPPING中添加上你需要的音色和对应方块
 # --------------------------
 
 # 乐器到音符盒音色映射
