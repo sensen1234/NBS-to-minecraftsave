@@ -1,6 +1,7 @@
 import pynbs
 from nbs2save.core.config import GENERATE_CONFIG, GROUP_CONFIG
-from nbs2save.core.schem import SchematicProcessor, McFunctionProcessor
+from nbs2save.core.mcfunction import McFunctionProcessor
+from nbs2save.core.schematic import SchematicProcessor 
 
 # --------------------------
 # 命令行测试

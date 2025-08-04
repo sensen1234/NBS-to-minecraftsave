@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 from ..core.constants import MINECRAFT_VERSIONS
-from ..core.schem import SchematicProcessor, McFunctionProcessor
+from ..core.core import SchematicProcessor, McFunctionProcessor
 from .widgets import FluentButton, FluentLineEdit, FluentComboBox, FluentGroupBox, FluentTabWidget
 
 
