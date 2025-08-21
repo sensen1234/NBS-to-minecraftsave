@@ -12,8 +12,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 from ..core.constants import MINECRAFT_VERSIONS
-from ..core.schematic import SchematicProcessor
-from ..core.mcfunction import McFunctionProcessor
+from ..core.core import GroupProcessor
+from ..core.schematic import SchematicOutputStrategy
+from ..core.mcfunction import McFunctionOutputStrategy
+from ..core.staircase_schematic import StaircaseSchematicOutputStrategy  # 新增导入
 from .widgets import FluentButton, FluentLineEdit, FluentComboBox, FluentGroupBox, FluentTabWidget
 
 
@@ -349,6 +351,29 @@ class NBSConverterGUI(QMainWindow):
         output_file_layout.addWidget(output_file_btn)
         output_layout.addLayout(output_file_layout)
 
+        # 基本设置
+        basic_group = FluentGroupBox("基本设置")
+        basic_layout = QFormLayout()
+        basic_layout.setSpacing(12)
+
+        # 基础方块
+        self.base_block_input = FluentLineEdit("minecraft:iron_block")
+        basic_layout.addRow("基础方块:", self.base_block_input)
+
+        # 覆盖方块
+        self.cover_block_input = FluentLineEdit("minecraft:iron_block")
+        basic_layout.addRow("覆盖方块:", self.cover_block_input)
+
+        # 生成模式
+        self.generation_mode_combo = FluentComboBox()
+        self.generation_mode_combo.addItems(["default", "staircase"])
+        self.generation_mode_combo.setCurrentText("default")
+        basic_layout.addRow("生成模式:", self.generation_mode_combo)
+
+        # 添加到分组框
+        basic_group.setLayout(basic_layout)
+        layout.addWidget(basic_group)
+
         # 轨道组设置标签页内容
         # 轨道组表格
         self.groups_table = QTableWidget()
@@ -592,18 +617,26 @@ class NBSConverterGUI(QMainWindow):
                     f.write("\n")
 
             # 创建处理器
-            if self.config['type'] == 'schematic':
-                processor = SchematicProcessor(
-                    all_notes, global_max_tick, self.config, self.group_config)
-            elif self.config['type'] == 'mcfunction':
-                processor = McFunctionProcessor(
-                    all_notes, global_max_tick, self.config, self.group_config)
-            else:
-                raise ValueError(f"无效的输出类型: {self.config['type']}")
-
-            # 设置回调
+            processor = GroupProcessor(all_notes, global_max_tick, self.global_config, self.group_configs)
             processor.set_log_callback(self.log)
             processor.set_progress_callback(self.update_progress)
+
+            # 根据输出类型设置处理器
+            output_type = self.global_config["type"]
+            if output_type == "schematic":
+                # 检查是否有轨道组使用阶梯模式
+                use_staircase = any(
+                    config.get("generation_mode") == "staircase" 
+                    for config in self.group_configs.values()
+                )
+                if use_staircase:
+                    processor.set_output_strategy(StaircaseSchematicOutputStrategy())
+                else:
+                    processor.set_output_strategy(SchematicOutputStrategy())
+            elif output_type == "mcfunction":
+                processor.set_output_strategy(McFunctionOutputStrategy())
+            else:
+                raise ValueError(f"不支持的输出类型: {output_type}")
 
             # 执行处理
             processor.process()
@@ -715,3 +748,40 @@ class NBSConverterGUI(QMainWindow):
             if self.type_combo.itemData(i) == output_type:
                 self.type_combo.setCurrentIndex(i)
                 break
+
+    def update_group_config_display(self, group_id):
+        """更新轨道组配置显示"""
+        if group_id in self.group_configs:
+            config = self.group_configs[group_id]
+            coords = config.get("base_coords", ("0", "0", "0"))
+            self.x_spin.setValue(int(coords[0]))
+            self.y_spin.setValue(int(coords[1]))
+            self.z_spin.setValue(int(coords[2]))
+            
+            layers = config.get("layers", [])
+            self.layers_input.setText(",".join(map(str, layers)))
+            
+            blocks = config.get("block", {})
+            self.base_block_input.setText(blocks.get("base", "minecraft:iron_block"))
+            self.cover_block_input.setText(blocks.get("cover", "minecraft:iron_block"))
+            
+            # 设置生成模式
+            generation_mode = config.get("generation_mode", "default")
+            self.generation_mode_combo.setCurrentText(generation_mode)
+
+    def save_current_group_config(self):
+        """保存当前轨道组配置"""
+        current_group = self.group_selector.currentData()
+        if current_group is not None:
+            self.group_configs[current_group] = {
+                "base_coords": (str(self.x_spin.value()), 
+                               str(self.y_spin.value()), 
+                               str(self.z_spin.value())),
+                "layers": self.parse_layers(self.layers_input.text()),
+                "block": {
+                    "base": self.base_block_input.text() or "minecraft:iron_block",
+                    "cover": self.cover_block_input.text() or "minecraft:iron_block"
+                },
+                # 保存生成模式
+                "generation_mode": self.generation_mode_combo.currentText()
+            }

@@ -138,6 +138,7 @@ class GroupProcessor(ABC):
         self.log_callback = None  # 日志回调
         self.progress_callback = None  # 进度回调
         self.output_strategy: OutputFormatStrategy = None  # 输出格式策略
+        self.generation_mode: str = "default"  # 生成模式（default 或 staircase）
 
     # ----------------------
     # 回调注册
@@ -186,12 +187,14 @@ class GroupProcessor(ABC):
             self.log(f"\n>> 处理轨道组 {group_id}:")
             self.log(f"├─ 包含轨道: {config['layers']}")
             self.log(f"├─ 基准坐标: {config['base_coords']}")
-            self.log(f"└─ 方块配置: {config['block']}")
+            self.log(f"├─ 方块配置: {config['block']}")
+            self.log(f"└─ 生成模式: {config.get('generation_mode', 'default')}")
 
             # 初始化本组专属字段
             self.base_x, self.base_y, self.base_z = map(int, config["base_coords"])
             self.base_block = config["block"]["base"]
             self.cover_block = config["block"]["cover"]
+            self.generation_mode = config.get("generation_mode", "default")  # 获取生成模式
             self.layers = set(config["layers"])
             self.tick_status = defaultdict(lambda: {"left": False, "right": False})
 

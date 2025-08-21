@@ -51,7 +51,7 @@ GROUP_CONFIG = {
         # layers: 该轨道组包含的轨道ID列表
         # NBS文件中的每个音符轨道都有一个唯一的ID
         # 通过这个列表可以指定哪些轨道属于当前轨道组
-        'layers': [0, 1],
+        'layers': [0, 1,2,3,4,5,6],
         
         # block: 轨道组的方块配置
         # 定义生成结构时使用的方块类型
@@ -63,6 +63,12 @@ GROUP_CONFIG = {
             # cover: 顶部覆盖方块
             # 用于覆盖在基础平台上方的方块，通常是红石相关结构
             'cover': 'minecraft:iron_block'
-        }
+        },
+        
+        # generation_mode: 生成模式
+        # 可选值:
+        #   'default'    -> 默认生成模式（当前schematic.py的实现）
+        #   'staircase'  -> 阶梯向下生成模式（偏移>=3时启用阶梯效果）
+        'generation_mode': 'default'
     },
 }
