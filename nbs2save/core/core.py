@@ -2,7 +2,7 @@
 """
 轨道组处理核心模块
 ----------------
-负责把 Note 列表转换成 Minecraft 命令或 .schem 结构文件。
+负责把 Note 列列转换成 Minecraft 命令或 .schem 结构文件。
 
 主要流程
 1. 根据 group_config 把 Note 划分到不同轨道组。
@@ -26,6 +26,70 @@ from pynbs import Note
 
 from .constants import INSTRUMENT_MAPPING, INSTRUMENT_BLOCK_MAPPING, NOTEPITCH_MAPPING
 from .config import GENERATE_CONFIG, GROUP_CONFIG
+
+
+# --------------------------
+# 输出格式策略接口
+# --------------------------
+class OutputFormatStrategy(ABC):
+    """
+    定义输出格式的策略接口
+    不同的输出格式（如mcfunction、schematic）需要实现这个接口
+    """
+    
+    @abstractmethod
+    def initialize(self, processor: GroupProcessor):
+        """
+        初始化输出格式
+        
+        参数:
+        processor: GroupProcessor实例
+        """
+        pass
+    
+    @abstractmethod
+    def write_base_structures(self, processor: GroupProcessor, tick: int):
+        """
+        写入基础结构
+        
+        参数:
+        processor: GroupProcessor实例
+        tick: 当前tick
+        """
+        pass
+    
+    @abstractmethod
+    def write_pan_platform(self, processor: GroupProcessor, tick: int, direction: int):
+        """
+        写入声像平台
+        
+        参数:
+        processor: GroupProcessor实例
+        tick: 当前tick
+        direction: 方向（1=右，-1=左）
+        """
+        pass
+    
+    @abstractmethod
+    def write_note(self, processor: GroupProcessor, note: Note):
+        """
+        写入音符
+        
+        参数:
+        processor: GroupProcessor实例
+        note: 要写入的音符
+        """
+        pass
+    
+    @abstractmethod
+    def finalize(self, processor: GroupProcessor):
+        """
+        完成输出
+        
+        参数:
+        processor: GroupProcessor实例
+        """
+        pass
 
 
 # --------------------------
@@ -62,9 +126,9 @@ class GroupProcessor(ABC):
         self.group_config: Dict = group_config
 
         # 以下字段在 process() 中动态填充
-        self.base_x: int | None = None  # 轨道组基准 X
-        self.base_y: int | None = None  # 轨道组基准 Y
-        self.base_z: int | None = None  # 轨道组基准 Z
+        self.base_x: int | None = None  # 轨道组基准 X 坐标
+        self.base_y: int | None = None  # 轨道组基准 Y 坐标
+        self.base_z: int | None = None  # 轨道组基准 Z 坐标
         self.notes: List[Note] | None = None  # 属于本组的音符（按 tick 排序）
         self.tick_status: defaultdict[int, Dict[str, bool]] = None  # tick 级状态缓存
         self.group_max_tick: int = 0  # 本组最大 tick
@@ -73,6 +137,7 @@ class GroupProcessor(ABC):
         self.base_block: str = ""  # 走线/基座方块
         self.log_callback = None  # 日志回调
         self.progress_callback = None  # 进度回调
+        self.output_strategy: OutputFormatStrategy = None  # 输出格式策略
 
     # ----------------------
     # 回调注册
@@ -96,10 +161,27 @@ class GroupProcessor(ABC):
             self.progress_callback(value)
 
     # ----------------------
+    # 输出策略设置
+    # ----------------------
+    def set_output_strategy(self, strategy: OutputFormatStrategy):
+        """
+        设置输出格式策略
+        
+        参数:
+        strategy: OutputFormatStrategy实例
+        """
+        self.output_strategy = strategy
+        self.output_strategy.initialize(self)
+
+    # ----------------------
     # 主流程入口
     # ----------------------
     def process(self):
         """遍历所有轨道组，依次处理。"""
+        # 检查是否设置了输出策略
+        if self.output_strategy is None:
+            raise ValueError("未设置输出格式策略，请先调用set_output_strategy方法")
+            
         for group_id, config in self.group_config.items():
             self.log(f"\n>> 处理轨道组 {group_id}:")
             self.log(f"├─ 包含轨道: {config['layers']}")
@@ -123,6 +205,9 @@ class GroupProcessor(ABC):
 
             # 核心生成
             self.process_group()
+            
+        # 完成处理
+        self.output_strategy.finalize(self)
 
     # ----------------------
     # 音符加载 & 工具方法
@@ -134,9 +219,9 @@ class GroupProcessor(ABC):
         """
         self.notes = sorted(
             (n for n in all_notes if n.layer in self.layers),
-            key=lambda n: n.tick,
+            key=lambda note: note.tick,
         )
-        self.group_max_tick = max(n.tick for n in self.notes) if self.notes else 0
+        self.group_max_tick = max(note.tick for note in self.notes) if self.notes else 0
 
     @staticmethod
     def _calculate_pan(note: Note) -> int:
@@ -152,14 +237,81 @@ class GroupProcessor(ABC):
         """
         在指定 tick 内，找出给定方向（1=右，-1=左）的最大绝对偏移值。
         用于决定声像平台长度。
+        
+        参数:
+        notes: 音符列表
+        tick: 当前tick
+        direction: 方向（1=右，-1=左）
+        
+        返回:
+        带符号的最大偏移值
         """
         max_pan = 0
         for note in notes:
             if note.tick == tick:
                 pan = GroupProcessor._calculate_pan(note)
+                # 检查音符方向是否与指定方向一致
                 if pan * direction > 0:
                     max_pan = max(max_pan, abs(pan))
         return max_pan * direction  # 带符号
+
+    # ----------------------
+    # 坐标计算（可被子类重写）
+    # ----------------------
+    def get_note_position(self, note: Note) -> tuple[int, int, int]:
+        """
+        计算音符在Minecraft世界中的坐标位置
+        子类可以重写此方法以实现不同的坐标计算逻辑
+        
+        参数:
+        note: 要计算坐标的音符
+        
+        返回:
+        (x, y, z) 三元组，表示音符在Minecraft世界中的坐标
+        """
+        tick_x = self.base_x + note.tick * 2
+        pan_offset = self._calculate_pan(note)
+        z_pos = self.base_z + pan_offset
+        return tick_x, self.base_y, z_pos
+
+    def get_platform_start_z(self) -> int:
+        """
+        获取平台起始Z坐标（主干道位置）
+        
+        返回:
+        平台起始Z坐标
+        """
+        return self.base_z
+
+    def calculate_platform_end_z(self, max_pan_offset: int, direction: int) -> int:
+        """
+        计算平台结束Z坐标
+        
+        参数:
+        max_pan_offset: 最大偏移量
+        direction: 方向（1=右，-1=左）
+        
+        返回:
+        平台结束Z坐标
+        """
+        platform_start_z = self.get_platform_start_z()
+        if direction == 1:  # 右侧
+            return platform_start_z + max_pan_offset - 1
+        else:  # 左侧
+            return platform_start_z + max_pan_offset + 1
+
+    def get_wire_start_z(self, direction: int) -> int:
+        """
+        获取红石线起始Z坐标（从主干道旁边开始）
+        
+        参数:
+        direction: 方向（1=右，-1=左）
+        
+        返回:
+        红石线起始Z坐标
+        """
+        platform_start_z = self.get_platform_start_z()
+        return platform_start_z + direction
 
     # ----------------------
     # 逐 tick 处理
@@ -174,7 +326,7 @@ class GroupProcessor(ABC):
         5. 生成音符方块。
         """
         current_tick = 0
-        note_ptr = 0  # 已处理到的音符下标
+        note_index = 0  # 已处理到的音符索引
 
         while current_tick <= self.global_max_tick:
             # 1. 更新进度
@@ -186,13 +338,13 @@ class GroupProcessor(ABC):
             self.update_progress(progress)
 
             # 2. 基础结构（时钟、走线）
-            self._generate_base_structures(current_tick)
+            self.output_strategy.write_base_structures(self, current_tick)
 
             # 3. 收集当前 tick 的音符
             active_notes: List[Note] = []
-            while note_ptr < len(self.notes) and self.notes[note_ptr].tick == current_tick:
-                active_notes.append(self.notes[note_ptr])
-                note_ptr += 1
+            while note_index < len(self.notes) and self.notes[note_index].tick == current_tick:
+                active_notes.append(self.notes[note_index])
+                note_index += 1
 
             # 4. 检测坐标冲突：同一 tick 同一 z 不允许重复
             occupied_positions = set()
@@ -215,44 +367,10 @@ class GroupProcessor(ABC):
                     pan_directions.add(1 if pan > 0 else -1)
 
             for direction in sorted(pan_directions, reverse=True):  # 左(-1) > 右(1)
-                self._generate_pan_platform(current_tick, direction)
+                self.output_strategy.write_pan_platform(self, current_tick, direction)
 
             # 6. 生成音符
             for note in active_notes:
-                self._generate_note(note)
+                self.output_strategy.write_note(self, note)
 
             current_tick += 1
-
-    # ----------------------
-    # 子类必须实现的抽象方法
-    # ----------------------
-    @abstractmethod
-    def _generate_base_structures(self, tick: int):
-        """生成当前 tick 的基础时钟结构。"""
-        pass
-
-    @abstractmethod
-    def _generate_pan_platform(self, tick: int, direction: int):
-        """
-        根据方向生成声像偏移平台。
-        direction: 1=右, -1=左
-        """
-        pass
-
-    @abstractmethod
-    def _generate_note(self, note: Note):
-        """根据 Note 对象生成单个音符方块及其基座。"""
-        pass
-
-    @abstractmethod
-    def _write(self, commands: List[str]):
-        """
-        把命令写入最终输出。
-        在 McFunctionProcessor 里写入 .mcfunction；
-        在 SchematicProcessor 里直接操作 MCSchematic。
-        """
-        pass
-
-
-
-
