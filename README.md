@@ -1,6 +1,7 @@
 # NBS-to-minecraftsave
 
 一个将NBS（Note Block Studio）音乐文件转换为Minecraft可用格式的工具，支持生成WorldEdit schematic文件和Minecraft数据包函数。
+##严禁使用本程序用于生成与《花之舞》(Flower Dance）有关的nbs!!!! 如需生成，请联系我获取授权。
 
 ## 功能特点
 
