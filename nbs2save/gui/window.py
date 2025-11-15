@@ -4,7 +4,7 @@ import traceback
 
 import pynbs
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QTextEdit, QFileDialog,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
     QProgressBar, QFrame, QSizePolicy, QStyle
@@ -20,184 +20,292 @@ from .widgets import FluentButton, FluentLineEdit, FluentComboBox, FluentGroupBo
 
 
 def create_fluent_style():
-    """创建Fluent Design样式表"""
+    """创建Win11风格的Fluent Design样式表 - 兼容PyQt6版本"""
     return """
-    /* 全局样式 */
+    /* 全局样式 - Win11设计语言 */
     QWidget {
         font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
-        font-size: 11pt;
-        background-color: #f6f6f6;
+        font-size: 10pt;
+        color: #323130;
+        background-color: #fafafa;
     }
 
-    /* 主窗口 */
+    /* 主窗口 - Win11背景 */
     QMainWindow {
-        background-color: #f6f6f6;
+        background-color: #fafafa;
+        border: 1px solid #e1dfdd;
     }
 
-    /* 标题栏 */
-    QMainWindow::title {
-        color: #333333;
+    /* 标题区域 */
+    #titleLabel {
+        font-size: 24px;
         font-weight: 600;
-        padding: 100px;
+        color: #323130;
+        background-color: transparent;
+        padding: 8px 16px;
+        border-radius: 6px;
     }
 
-    /* 分组框 */
+    /* 分组框 - Win11圆角卡片设计 */
     QGroupBox {
         background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        margin-top: 13px;
+        border: 1px solid #e1dfdd;
+        border-radius: 12px;
+        margin-top: 16px;
         padding-top: 20px;
         font-weight: 600;
-        color: #333333;
+        color: #323130;
     }
 
     QGroupBox::title {
         subcontrol-origin: margin;
         subcontrol-position: top left;
-        left: 12px;
-        top: 30px;
-        padding: 0 8px;
-        background-color: transparent;
+        left: 16px;
+        top: 12px;
+        padding: 0 12px 0 8px;
+        background-color: #fafafa;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #323130;
     }
 
-    /* 标签 */
+    /* 标签 - 清晰层次 */
     QLabel {
-        color: #333333;
+        color: #323130;
         font-weight: 500;
-        background-color: #ffffff;
+        background-color: transparent;
+        font-size: 10pt;
     }
 
-    /* 按钮 */
+    /* 按钮 - Win11 Fluent按钮样式 */
     QPushButton {
         background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-        color: #333333;
-        padding: 8px 16px;
-        min-height: 32px;
+        border: 1px solid #e1dfdd;
+        border-radius: 8px;
+        color: #323130;
+        padding: 10px 16px;
+        min-height: 20px;
         font-weight: 500;
+        font-size: 10pt;
     }
 
     QPushButton:hover {
-        background-color: #f0f0f0;
+        background-color: #f3f2f1;
         border-color: #d0d0d0;
     }
 
     QPushButton:pressed {
-        background-color: #e0e0e0;
+        background-color: #edebe9;
+        border-color: #c8c6c4;
     }
 
-    QPushButton:checked {
-        background-color: #e0e0e0;
+    QPushButton:focus {
+        outline: none;
+        border-color: #0078d4;
     }
 
-    /* 特殊按钮 */
+    /* 主要按钮 - 强调色 */
     QPushButton#runButton {
-        background-color: #0078d7;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                                   stop:0 #0078d4, stop:1 #106ebe);
         color: #ffffff;
-        border: 1px solid #0066b4;
+        border: 1px solid #005a9e;
         font-weight: 600;
+        border-radius: 8px;
     }
 
     QPushButton#runButton:hover {
-        background-color: #0066b4;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                                   stop:0 #1084d0, stop:1 #0078d4);
+        border-color: #004578;
     }
 
     QPushButton#runButton:pressed {
-        background-color: #005a9e;
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+                                   stop:0 #106ebe, stop:1 #005a9e);
     }
 
-    /* 输入框 */
+    /* 输入框 - Win11 Fluent输入框 */
     QLineEdit, QComboBox, QTextEdit, QSpinBox, QDoubleSpinBox {
         background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-        padding: 8px;
-        color: #333333;
+        border: 1px solid #e1dfdd;
+        border-radius: 8px;
+        padding: 12px 12px;
+        color: #323130;
+        font-size: 10pt;
     }
 
     QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
-        border: 1px solid #0078d7;
+        border-color: #0078d4;
+        background-color: #ffffff;
+        outline: none;
     }
 
-    /* 表格 */
+    QLineEdit:hover, QComboBox:hover, QTextEdit:hover {
+        border-color: #c8c6c4;
+    }
+
+    /* 下拉框特殊样式 */
+    QComboBox::drop-down {
+        border: none;
+        border-radius: 0 8px 8px 0;
+        width: 32px;
+        background-color: #f3f2f1;
+    }
+
+    QComboBox::down-arrow {
+        image: none;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 5px solid #323130;
+        margin-right: 8px;
+    }
+
+    /* 表格 - Win11样式 */
     QTableWidget {
         background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-        gridline-color: #e0e0e0;
-        alternate-background-color: #f9f9f9;
+        border: 1px solid #e1dfdd;
+        border-radius: 8px;
+        gridline-color: #edebe9;
+        alternate-background-color: #faf9f8;
+        selection-background-color: #0078d4;
+        selection-color: #ffffff;
+        padding: 4px;
     }
 
     QHeaderView::section {
-        background-color: #f0f0f0;
-        color: #333333;
+        background-color: #f3f2f1;
+        color: #323130;
         font-weight: 600;
-        padding: 0px;
+        padding: 8px 12px;
         border: none;
+        border-right: 1px solid #edebe9;
+        border-radius: 4px;
+        font-size: 9pt;
     }
 
     QTableWidget::item {
-        padding: -1px;
+        padding: 8px 4px;
+        border-radius: 4px;
     }
 
-    /* 标签页 */
+    QTableWidget::item:selected {
+        background-color: #0078d4;
+        color: #ffffff;
+    }
+
+    /* 标签页 - Win11 Fluent标签页 */
     QTabWidget::pane {
-        border: none;
-        margin-top: -1px;
+        border: 1px solid #e1dfdd;
+        border-radius: 12px;
+        background-color: #ffffff;
+        margin-top: 8px;
     }
 
     QTabBar::tab {
-        background-color: #f0f0f0;
-        border: 1px solid #e0e0e0;
+        background-color: #f3f2f1;
+        border: 1px solid #e1dfdd;
         border-bottom: none;
-        border-top-left-radius: 6px;
-        border-top-right-radius: 6px;
-        padding: 8px 16px;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+        padding: 12px 20px;
         margin-right: 2px;
+        font-weight: 500;
+        font-size: 10pt;
+        color: #605e5c;
     }
 
     QTabBar::tab:selected {
         background-color: #ffffff;
-        border-color: #e0e0e0;
-        border-bottom: 2px solid #0078d7;
+        border-color: #e1dfdd;
+        color: #323130;
         font-weight: 600;
+        border-bottom: 2px solid #0078d4;
     }
 
-    QTabBar::tab:hover {
-        background-color: #e0e0e0;
+    QTabBar::tab:hover:!selected {
+        background-color: #edebe9;
+        color: #323130;
     }
 
-    /* 进度条 */
+    /* 进度条 - Win11样式 */
     QProgressBar {
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
+        border: 1px solid #e1dfdd;
+        border-radius: 8px;
         text-align: center;
-        background-color: #ffffff;
+        background-color: #f3f2f1;
+        color: #323130;
+        font-weight: 500;
+        height: 24px;
     }
 
     QProgressBar::chunk {
-        background-color: #0078d7;
-        border-radius: 4px;
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+                                   stop:0 #0078d4, stop:1 #106ebe);
+        border-radius: 6px;
+        margin: 1px;
     }
 
-    /* 状态栏 */
+    /* 状态栏 - Win11 Fluent */
     QStatusBar {
-        background-color: #f0f0f0;
-        border-top: 1px solid #e0e0e0;
-        padding: 4px;
+        background-color: #f3f2f1;
+        border-top: 1px solid #e1dfdd;
+        padding: 8px;
+        font-size: 9pt;
+        color: #605e5c;
     }
 
-    /* 分隔线 */
+    /* 分隔线 - 柔和设计 */
     QFrame[frameShape="4"] { /* HLine */
         border: none;
-        border-top: 1px solid #e0e0e0;
+        border-top: 1px solid #edebe9;
+        margin: 8px 0;
+    }
+
+    /* 滚动条 - Win11样式 */
+    QScrollBar:vertical {
+        background-color: #f3f2f1;
+        width: 12px;
+        border-radius: 6px;
+        margin: 0;
+    }
+
+    QScrollBar::handle:vertical {
+        background-color: #c8c6c4;
+        border-radius: 6px;
+        min-height: 20px;
+        margin: 2px;
+    }
+
+    QScrollBar::handle:vertical:hover {
+        background-color: #a19f9d;
+    }
+
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+        border: none;
+        background: none;
+    }
+
+    /* 消息框样式 */
+    QMessageBox {
+        background-color: #ffffff;
+    }
+
+    QMessageBox QLabel {
+        color: #323130;
+        font-size: 10pt;
+    }
+
+    QMessageBox QPushButton {
+        min-width: 80px;
+        padding: 6px 12px;
+        border-radius: 6px;
     }
     """
 
 
-class NBSConverterGUI(QMainWindow):
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("NBS-to-Minecraft")
@@ -249,8 +357,9 @@ class NBSConverterGUI(QMainWindow):
         # title_icon.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         title_label = QLabel("NBS-to-Minecraft")
+        title_label.setObjectName("titleLabel")
         title_label.setStyleSheet(
-            "font-size: 20pt; font-weight: 600; color: #333333; background-color: #f6f6f6;")
+            "font-size: 24px; font-weight: 600; color: #323130; background-color: transparent; padding: 4px 8px; border-radius: 4px;")
 
         # title_layout.addWidget(title_icon)
         title_layout.addWidget(title_label)
@@ -292,8 +401,6 @@ class NBSConverterGUI(QMainWindow):
         log_tab.setLayout(log_layout)
         tabs.addTab(log_tab, "处理日志")
 
-        # 基本设置标签页内容
-        # 输入文件选择
         # 基本设置标签页内容
         # 输入文件选择
         file_group = FluentGroupBox("输入文件设置")
@@ -353,26 +460,26 @@ class NBSConverterGUI(QMainWindow):
 
         # 基本设置
         basic_group = FluentGroupBox("基本设置")
-        basic_layout = QFormLayout()
-        basic_layout.setSpacing(12)
+        settings_layout = QFormLayout()
+        settings_layout.setSpacing(12)
 
         # 基础方块
         self.base_block_input = FluentLineEdit("minecraft:iron_block")
-        basic_layout.addRow("基础方块:", self.base_block_input)
+        settings_layout.addRow("基础方块:", self.base_block_input)
 
         # 覆盖方块
         self.cover_block_input = FluentLineEdit("minecraft:iron_block")
-        basic_layout.addRow("覆盖方块:", self.cover_block_input)
+        settings_layout.addRow("覆盖方块:", self.cover_block_input)
 
         # 生成模式
         self.generation_mode_combo = FluentComboBox()
         self.generation_mode_combo.addItems(["default", "staircase"])
         self.generation_mode_combo.setCurrentText("default")
-        basic_layout.addRow("生成模式:", self.generation_mode_combo)
+        settings_layout.addRow("生成模式:", self.generation_mode_combo)
 
         # 添加到分组框
-        basic_group.setLayout(basic_layout)
-        layout.addWidget(basic_group)
+        basic_group.layout().addLayout(settings_layout)
+        basic_layout.addWidget(basic_group)
 
         # 轨道组设置标签页内容
         # 轨道组表格
@@ -617,17 +724,17 @@ class NBSConverterGUI(QMainWindow):
                     f.write("\n")
 
             # 创建处理器
-            processor = GroupProcessor(all_notes, global_max_tick, self.global_config, self.group_configs)
+            processor = GroupProcessor(all_notes, global_max_tick, self.config, self.group_config)
             processor.set_log_callback(self.log)
             processor.set_progress_callback(self.update_progress)
 
             # 根据输出类型设置处理器
-            output_type = self.global_config["type"]
+            output_type = self.config["type"]
             if output_type == "schematic":
                 # 检查是否有轨道组使用阶梯模式
                 use_staircase = any(
                     config.get("generation_mode") == "staircase" 
-                    for config in self.group_configs.values()
+                    for config in self.group_config.values()
                 )
                 if use_staircase:
                     processor.set_output_strategy(StaircaseSchematicOutputStrategy())
@@ -749,39 +856,12 @@ class NBSConverterGUI(QMainWindow):
                 self.type_combo.setCurrentIndex(i)
                 break
 
-    def update_group_config_display(self, group_id):
-        """更新轨道组配置显示"""
-        if group_id in self.group_configs:
-            config = self.group_configs[group_id]
-            coords = config.get("base_coords", ("0", "0", "0"))
-            self.x_spin.setValue(int(coords[0]))
-            self.y_spin.setValue(int(coords[1]))
-            self.z_spin.setValue(int(coords[2]))
-            
-            layers = config.get("layers", [])
-            self.layers_input.setText(",".join(map(str, layers)))
-            
-            blocks = config.get("block", {})
-            self.base_block_input.setText(blocks.get("base", "minecraft:iron_block"))
-            self.cover_block_input.setText(blocks.get("cover", "minecraft:iron_block"))
-            
-            # 设置生成模式
-            generation_mode = config.get("generation_mode", "default")
-            self.generation_mode_combo.setCurrentText(generation_mode)
-
-    def save_current_group_config(self):
-        """保存当前轨道组配置"""
-        current_group = self.group_selector.currentData()
-        if current_group is not None:
-            self.group_configs[current_group] = {
-                "base_coords": (str(self.x_spin.value()), 
-                               str(self.y_spin.value()), 
-                               str(self.z_spin.value())),
-                "layers": self.parse_layers(self.layers_input.text()),
-                "block": {
-                    "base": self.base_block_input.text() or "minecraft:iron_block",
-                    "cover": self.cover_block_input.text() or "minecraft:iron_block"
-                },
-                # 保存生成模式
-                "generation_mode": self.generation_mode_combo.currentText()
-            }
+    def parse_layers(self, layers_text):
+        """解析轨道层配置文本"""
+        layers = []
+        if layers_text:
+            try:
+                layers = [int(l.strip()) for l in layers_text.split(",") if l.strip()]
+            except ValueError:
+                layers = [0]  # 默认值
+        return layers if layers else [0]
