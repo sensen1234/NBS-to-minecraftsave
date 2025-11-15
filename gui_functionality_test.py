@@ -67,11 +67,14 @@ class GUI_Functionality_Test(unittest.TestCase):
             input_edit.setText("test_nbs_file.nbs")
             self.assertEqual(input_edit.text(), "test_nbs_file.nbs")
         
-        # 测试基础方块输入框
-        base_block_input = getattr(self.window, 'base_block_input', None)
-        if base_block_input:
-            base_block_input.setText("minecraft:diamond_block")
-            self.assertEqual(base_block_input.text(), "minecraft:diamond_block")
+        # 测试基础方块输入框（现在在轨道组表格中）
+        groups_table = getattr(self.window, 'groups_table', None)
+        if groups_table and groups_table.rowCount() > 0:
+            # 在表格中设置基础方块
+            base_block_item = groups_table.item(0, 5)  # 基础方块列
+            if base_block_item:
+                base_block_item.setText("minecraft:diamond_block")
+                self.assertEqual(base_block_item.text(), "minecraft:diamond_block")
         
         print("✅ 基本输入字段测试通过")
 
@@ -105,12 +108,12 @@ class GUI_Functionality_Test(unittest.TestCase):
             print(f"   初始表格行数: {initial_rows}")
             
             # 检查表格列数
-            self.assertEqual(groups_table.columnCount(), 7)
+            self.assertEqual(groups_table.columnCount(), 8)
             
             # 检查表头
             headers = [groups_table.horizontalHeaderItem(i).text() 
                       for i in range(groups_table.columnCount())]
-            expected_headers = ["ID", "基准X", "基准Y", "基准Z", "轨道ID", "基础方块", "覆盖方块"]
+            expected_headers = ["ID", "基准X", "基准Y", "基准Z", "轨道ID", "基础方块", "覆盖方块", "生成模式"]
             self.assertEqual(headers, expected_headers)
         
         print("✅ 表格操作测试通过")

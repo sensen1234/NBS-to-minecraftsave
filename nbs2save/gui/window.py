@@ -458,35 +458,14 @@ class MainWindow(QMainWindow):
         output_file_layout.addWidget(output_file_btn)
         output_layout.addLayout(output_file_layout)
 
-        # 基本设置
-        basic_group = FluentGroupBox("基本设置")
-        settings_layout = QFormLayout()
-        settings_layout.setSpacing(12)
 
-        # 基础方块
-        self.base_block_input = FluentLineEdit("minecraft:iron_block")
-        settings_layout.addRow("基础方块:", self.base_block_input)
-
-        # 覆盖方块
-        self.cover_block_input = FluentLineEdit("minecraft:iron_block")
-        settings_layout.addRow("覆盖方块:", self.cover_block_input)
-
-        # 生成模式
-        self.generation_mode_combo = FluentComboBox()
-        self.generation_mode_combo.addItems(["default", "staircase"])
-        self.generation_mode_combo.setCurrentText("default")
-        settings_layout.addRow("生成模式:", self.generation_mode_combo)
-
-        # 添加到分组框
-        basic_group.layout().addLayout(settings_layout)
-        basic_layout.addWidget(basic_group)
 
         # 轨道组设置标签页内容
         # 轨道组表格
         self.groups_table = QTableWidget()
-        self.groups_table.setColumnCount(7)
+        self.groups_table.setColumnCount(8)
         self.groups_table.setHorizontalHeaderLabels(
-            ["ID", "基准X", "基准Y", "基准Z", "轨道ID", "基础方块", "覆盖方块"])
+            ["ID", "基准X", "基准Y", "基准Z", "轨道ID", "基础方块", "覆盖方块", "生成模式"])
         self.groups_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.groups_table.verticalHeader().setDefaultSectionSize(36)
         groups_layout.addWidget(self.groups_table)
@@ -585,7 +564,8 @@ class MainWindow(QMainWindow):
             'block': {
                 'base': 'minecraft:iron_block',
                 'cover': 'minecraft:iron_block'
-            }
+            },
+            'generation_mode': 'default'
         }
         self.update_groups_table()
 
@@ -634,6 +614,11 @@ class MainWindow(QMainWindow):
             # 获取方块配置
             base_block = self.groups_table.item(row, 5).text().strip() or "minecraft:iron_block"
             cover_block = self.groups_table.item(row, 6).text().strip() or "minecraft:iron_block"
+            
+            # 获取生成模式（第8列，索引为7）
+            generation_mode = "default"
+            if self.groups_table.columnCount() >= 8:
+                generation_mode = self.groups_table.item(row, 7).text().strip() or "default"
 
             new_group_config[group_id] = {
                 'base_coords': (x, y, z),
@@ -641,7 +626,8 @@ class MainWindow(QMainWindow):
                 'block': {
                     'base': base_block,
                     'cover': cover_block
-                }
+                },
+                'generation_mode': generation_mode
             }
 
         # 更新内存中的配置
@@ -652,23 +638,31 @@ class MainWindow(QMainWindow):
         self.groups_table.setRowCount(len(self.group_config))
 
         for row, (group_id, config) in enumerate(self.group_config.items()):
-            # ID列
-            id_item = QTableWidgetItem(str(group_id))
-            id_item.setFlags(id_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            self.groups_table.setItem(row, 0, id_item)
-
+            # 基本设置列
+            self.groups_table.setItem(row, 0, QTableWidgetItem(str(group_id)))
+            
             # 坐标列
-            self.groups_table.setItem(row, 1, QTableWidgetItem(config['base_coords'][0]))
-            self.groups_table.setItem(row, 2, QTableWidgetItem(config['base_coords'][1]))
-            self.groups_table.setItem(row, 3, QTableWidgetItem(config['base_coords'][2]))
-
-            # 轨道ID列
-            layers_str = ",".join(map(str, config['layers']))
+            coords = config.get('base_coords', ('0', '0', '0'))
+            self.groups_table.setItem(row, 1, QTableWidgetItem(str(coords[0])))
+            self.groups_table.setItem(row, 2, QTableWidgetItem(str(coords[1])))
+            self.groups_table.setItem(row, 3, QTableWidgetItem(str(coords[2])))
+            
+            # 轨道层列
+            layers = config.get('layers', [0])
+            layers_str = ', '.join(map(str, layers))
             self.groups_table.setItem(row, 4, QTableWidgetItem(layers_str))
-
-            # 方块列
-            self.groups_table.setItem(row, 5, QTableWidgetItem(config['block']['base']))
-            self.groups_table.setItem(row, 6, QTableWidgetItem(config['block']['cover']))
+            
+            # 方块列设置
+            base_block = config.get('block', {}).get('base', 'minecraft:iron_block')
+            cover_block = config.get('block', {}).get('cover', 'minecraft:iron_block')
+            
+            self.groups_table.setItem(row, 5, QTableWidgetItem(base_block))
+            self.groups_table.setItem(row, 6, QTableWidgetItem(cover_block))
+            
+            # 生成模式列（第8列，索引为7）
+            if self.groups_table.columnCount() >= 8:
+                generation_mode = config.get('generation_mode', 'default')
+                self.groups_table.setItem(row, 7, QTableWidgetItem(generation_mode))
 
     def log(self, message):
         """向日志窗口添加消息"""
