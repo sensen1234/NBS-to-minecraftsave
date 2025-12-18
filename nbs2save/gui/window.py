@@ -15,8 +15,10 @@ from ..core.constants import MINECRAFT_VERSIONS
 from ..core.core import GroupProcessor
 from ..core.schematic import SchematicOutputStrategy
 from ..core.mcfunction import McFunctionOutputStrategy
-from ..core.staircase_schematic import StaircaseSchematicOutputStrategy  # 新增导入
+from ..core.staircase_schematic import StaircaseSchematicOutputStrategy 
 from .widgets import FluentButton, FluentLineEdit, FluentComboBox, FluentGroupBox, FluentTabWidget
+# 导入坐标选择器
+from .coordinate_picker import CoordinatePickerDialog
 
 
 def create_fluent_style():
@@ -29,24 +31,10 @@ def create_fluent_style():
         color: #323130;
         background-color: #fafafa;
     }
-
-    /* 主窗口 - Win11背景 */
     QMainWindow {
         background-color: #fafafa;
         border: 1px solid #e1dfdd;
     }
-
-    /* 标题区域 */
-    #titleLabel {
-        font-size: 24px;
-        font-weight: 600;
-        color: #323130;
-        background-color: transparent;
-        padding: 8px 16px;
-        border-radius: 6px;
-    }
-
-    /* 分组框 - Win11圆角卡片设计 */
     QGroupBox {
         background-color: #ffffff;
         border: 1px solid #e1dfdd;
@@ -56,7 +44,6 @@ def create_fluent_style():
         font-weight: 600;
         color: #323130;
     }
-
     QGroupBox::title {
         subcontrol-origin: margin;
         subcontrol-position: top left;
@@ -69,16 +56,12 @@ def create_fluent_style():
         font-weight: 600;
         color: #323130;
     }
-
-    /* 标签 - 清晰层次 */
     QLabel {
         color: #323130;
         font-weight: 500;
         background-color: transparent;
         font-size: 10pt;
     }
-
-    /* 按钮 - Win11 Fluent按钮样式 */
     QPushButton {
         background-color: #ffffff;
         border: 1px solid #e1dfdd;
@@ -89,23 +72,14 @@ def create_fluent_style():
         font-weight: 500;
         font-size: 10pt;
     }
-
     QPushButton:hover {
         background-color: #f3f2f1;
         border-color: #d0d0d0;
     }
-
     QPushButton:pressed {
         background-color: #edebe9;
         border-color: #c8c6c4;
     }
-
-    QPushButton:focus {
-        outline: none;
-        border-color: #0078d4;
-    }
-
-    /* 主要按钮 - 强调色 */
     QPushButton#runButton {
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
                                    stop:0 #0078d4, stop:1 #106ebe);
@@ -114,19 +88,15 @@ def create_fluent_style():
         font-weight: 600;
         border-radius: 8px;
     }
-
     QPushButton#runButton:hover {
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
                                    stop:0 #1084d0, stop:1 #0078d4);
         border-color: #004578;
     }
-
     QPushButton#runButton:pressed {
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
                                    stop:0 #106ebe, stop:1 #005a9e);
     }
-
-    /* 输入框 - Win11 Fluent输入框 */
     QLineEdit, QComboBox, QTextEdit, QSpinBox, QDoubleSpinBox {
         background-color: #ffffff;
         border: 1px solid #e1dfdd;
@@ -135,25 +105,20 @@ def create_fluent_style():
         color: #323130;
         font-size: 10pt;
     }
-
     QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
         border-color: #0078d4;
         background-color: #ffffff;
         outline: none;
     }
-
     QLineEdit:hover, QComboBox:hover, QTextEdit:hover {
         border-color: #c8c6c4;
     }
-
-    /* 下拉框特殊样式 */
     QComboBox::drop-down {
         border: none;
         border-radius: 0 8px 8px 0;
         width: 32px;
         background-color: #f3f2f1;
     }
-
     QComboBox::down-arrow {
         image: none;
         border-left: 5px solid transparent;
@@ -161,8 +126,6 @@ def create_fluent_style():
         border-top: 5px solid #323130;
         margin-right: 8px;
     }
-
-    /* 表格 - Win11样式 */
     QTableWidget {
         background-color: #ffffff;
         border: 1px solid #e1dfdd;
@@ -173,7 +136,6 @@ def create_fluent_style():
         selection-color: #ffffff;
         padding: 4px;
     }
-
     QHeaderView::section {
         background-color: #f3f2f1;
         color: #323130;
@@ -184,25 +146,20 @@ def create_fluent_style():
         border-radius: 4px;
         font-size: 9pt;
     }
-
     QTableWidget::item {
         padding: 8px 4px;
         border-radius: 4px;
     }
-
     QTableWidget::item:selected {
         background-color: #0078d4;
         color: #ffffff;
     }
-
-    /* 标签页 - Win11 Fluent标签页 */
     QTabWidget::pane {
         border: 1px solid #e1dfdd;
         border-radius: 12px;
         background-color: #ffffff;
         margin-top: 8px;
     }
-
     QTabBar::tab {
         background-color: #f3f2f1;
         border: 1px solid #e1dfdd;
@@ -215,7 +172,6 @@ def create_fluent_style():
         font-size: 10pt;
         color: #605e5c;
     }
-
     QTabBar::tab:selected {
         background-color: #ffffff;
         border-color: #e1dfdd;
@@ -223,13 +179,10 @@ def create_fluent_style():
         font-weight: 600;
         border-bottom: 2px solid #0078d4;
     }
-
     QTabBar::tab:hover:!selected {
         background-color: #edebe9;
         color: #323130;
     }
-
-    /* 进度条 - Win11样式 */
     QProgressBar {
         border: 1px solid #e1dfdd;
         border-radius: 8px;
@@ -239,15 +192,12 @@ def create_fluent_style():
         font-weight: 500;
         height: 24px;
     }
-
     QProgressBar::chunk {
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
                                    stop:0 #0078d4, stop:1 #106ebe);
         border-radius: 6px;
         margin: 1px;
     }
-
-    /* 状态栏 - Win11 Fluent */
     QStatusBar {
         background-color: #f3f2f1;
         border-top: 1px solid #e1dfdd;
@@ -255,48 +205,37 @@ def create_fluent_style():
         font-size: 9pt;
         color: #605e5c;
     }
-
-    /* 分隔线 - 柔和设计 */
-    QFrame[frameShape="4"] { /* HLine */
+    QFrame[frameShape="4"] {
         border: none;
         border-top: 1px solid #edebe9;
         margin: 8px 0;
     }
-
-    /* 滚动条 - Win11样式 */
     QScrollBar:vertical {
         background-color: #f3f2f1;
         width: 12px;
         border-radius: 6px;
         margin: 0;
     }
-
     QScrollBar::handle:vertical {
         background-color: #c8c6c4;
         border-radius: 6px;
         min-height: 20px;
         margin: 2px;
     }
-
     QScrollBar::handle:vertical:hover {
         background-color: #a19f9d;
     }
-
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
         border: none;
         background: none;
     }
-
-    /* 消息框样式 */
     QMessageBox {
         background-color: #ffffff;
     }
-
     QMessageBox QLabel {
         color: #323130;
         font-size: 10pt;
     }
-
     QMessageBox QPushButton {
         min-width: 80px;
         padding: 6px 12px;
@@ -347,21 +286,11 @@ class MainWindow(QMainWindow):
 
         # 创建标题栏
         title_layout = QHBoxLayout()
-        # title_icon = QLabel()
-        # try:
-        # pixmap = QPixmap("note_block.png").scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio,
-        # Qt.TransformationMode.SmoothTransformation)
-        # title_icon.setPixmap(pixmap)
-        # except:
-        # pass
-        # title_icon.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-
         title_label = QLabel("NBS-to-Minecraft")
         title_label.setObjectName("titleLabel")
         title_label.setStyleSheet(
             "font-size: 24px; font-weight: 600; color: #323130; background-color: transparent; padding: 4px 8px; border-radius: 4px;")
 
-        # title_layout.addWidget(title_icon)
         title_layout.addWidget(title_label)
         title_layout.addStretch()
 
@@ -459,15 +388,15 @@ class MainWindow(QMainWindow):
         output_layout.addLayout(output_file_layout)
 
 
-
         # 轨道组设置标签页内容
         # 轨道组表格
         self.groups_table = QTableWidget()
-        self.groups_table.setColumnCount(8)
+        self.groups_table.setColumnCount(9)
         self.groups_table.setHorizontalHeaderLabels(
-            ["ID", "基准X", "基准Y", "基准Z", "轨道ID", "基础方块", "覆盖方块", "生成模式"])
+            ["ID", "基准X", "基准Y", "基准Z", "选点", "轨道ID", "基础方块", "覆盖方块", "生成模式"])
         self.groups_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.groups_table.verticalHeader().setDefaultSectionSize(36)
+        self.groups_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.groups_table.verticalHeader().setDefaultSectionSize(40)
         groups_layout.addWidget(self.groups_table)
 
         # 按钮行
@@ -553,10 +482,7 @@ class MainWindow(QMainWindow):
             self.output_file_edit.setText(file_path)
 
     def add_group(self):
-        # 先保存当前表格的所有修改
         self.save_table_to_config()
-
-        # 添加新轨道组
         group_id = max(self.group_config.keys()) + 1 if self.group_config else 0
         self.group_config[group_id] = {
             'base_coords': ("0", "0", "0"),
@@ -573,10 +499,7 @@ class MainWindow(QMainWindow):
         if len(self.group_config) <= 1:
             QMessageBox.warning(self, "警告", "至少需要保留一个轨道组！")
             return
-
-        # 先保存当前表格的所有修改
         self.save_table_to_config()
-
         selected = self.groups_table.currentRow()
         if selected >= 0:
             group_id = list(self.group_config.keys())[selected]
@@ -585,40 +508,33 @@ class MainWindow(QMainWindow):
 
     def save_table_to_config(self):
         """从表格保存配置到内存"""
-        # 清除当前配置，从表格重建
         new_group_config = {}
-
         for row in range(self.groups_table.rowCount()):
             try:
                 group_id = int(self.groups_table.item(row, 0).text())
             except:
-                # 如果ID列无效，使用行号作为ID
                 group_id = row
 
-            # 获取坐标值
             x = self.groups_table.item(row, 1).text().strip() or "0"
             y = self.groups_table.item(row, 2).text().strip() or "0"
             z = self.groups_table.item(row, 3).text().strip() or "0"
 
-            # 获取轨道ID
-            layers_str = self.groups_table.item(row, 4).text().strip()
+            layers_str = self.groups_table.item(row, 5).text().strip()
             layers = []
             if layers_str:
                 try:
                     layers = [int(l.strip()) for l in layers_str.split(",") if l.strip()]
                 except:
-                    layers = [0]  # 默认值
+                    layers = [0]
             else:
-                layers = [0]  # 默认值
+                layers = [0]
 
-            # 获取方块配置
-            base_block = self.groups_table.item(row, 5).text().strip() or "minecraft:iron_block"
-            cover_block = self.groups_table.item(row, 6).text().strip() or "minecraft:iron_block"
+            base_block = self.groups_table.item(row, 6).text().strip() or "minecraft:iron_block"
+            cover_block = self.groups_table.item(row, 7).text().strip() or "minecraft:iron_block"
             
-            # 获取生成模式（第8列，索引为7）
             generation_mode = "default"
-            if self.groups_table.columnCount() >= 8:
-                generation_mode = self.groups_table.item(row, 7).text().strip() or "default"
+            if self.groups_table.columnCount() >= 9:
+                generation_mode = self.groups_table.item(row, 8).text().strip() or "default"
 
             new_group_config[group_id] = {
                 'base_coords': (x, y, z),
@@ -629,82 +545,86 @@ class MainWindow(QMainWindow):
                 },
                 'generation_mode': generation_mode
             }
-
-        # 更新内存中的配置
         self.group_config = new_group_config
 
     def update_groups_table(self):
         """从内存配置更新表格显示"""
         self.groups_table.setRowCount(len(self.group_config))
-
         for row, (group_id, config) in enumerate(self.group_config.items()):
-            # 基本设置列
             self.groups_table.setItem(row, 0, QTableWidgetItem(str(group_id)))
             
-            # 坐标列
             coords = config.get('base_coords', ('0', '0', '0'))
             self.groups_table.setItem(row, 1, QTableWidgetItem(str(coords[0])))
             self.groups_table.setItem(row, 2, QTableWidgetItem(str(coords[1])))
             self.groups_table.setItem(row, 3, QTableWidgetItem(str(coords[2])))
             
-            # 轨道层列
+            pick_btn = FluentButton("📍 选点")
+            # [修正] 传递 row
+            pick_btn.clicked.connect(lambda checked, r=row: self.open_coordinate_picker(r))
+            self.groups_table.setCellWidget(row, 4, pick_btn)
+
             layers = config.get('layers', [0])
             layers_str = ', '.join(map(str, layers))
-            self.groups_table.setItem(row, 4, QTableWidgetItem(layers_str))
+            self.groups_table.setItem(row, 5, QTableWidgetItem(layers_str))
             
-            # 方块列设置
             base_block = config.get('block', {}).get('base', 'minecraft:iron_block')
             cover_block = config.get('block', {}).get('cover', 'minecraft:iron_block')
             
-            self.groups_table.setItem(row, 5, QTableWidgetItem(base_block))
-            self.groups_table.setItem(row, 6, QTableWidgetItem(cover_block))
+            self.groups_table.setItem(row, 6, QTableWidgetItem(base_block))
+            self.groups_table.setItem(row, 7, QTableWidgetItem(cover_block))
             
-            # 生成模式列（第8列，索引为7）
-            if self.groups_table.columnCount() >= 8:
+            if self.groups_table.columnCount() >= 9:
                 generation_mode = config.get('generation_mode', 'default')
-                self.groups_table.setItem(row, 7, QTableWidgetItem(generation_mode))
+                self.groups_table.setItem(row, 8, QTableWidgetItem(generation_mode))
+
+    def open_coordinate_picker(self, row):
+        """打开坐标选择器并更新表格"""
+        # 1. 必须先保存，以便获取所有行的最新数据
+        self.save_table_to_config()
+        
+        try:
+            group_id_item = self.groups_table.item(row, 0)
+            group_id = int(group_id_item.text()) if group_id_item else row
+        except ValueError:
+            group_id = row
+
+        # 2. [修正] 传递 group_id 和 整个配置数据
+        dialog = CoordinatePickerDialog(group_id, self.group_config, self)
+        
+        if dialog.exec():
+            new_x, new_y, new_z = dialog.get_coords()
+            
+            self.groups_table.setItem(row, 1, QTableWidgetItem(str(new_x)))
+            self.groups_table.setItem(row, 2, QTableWidgetItem(str(new_y)))
+            self.groups_table.setItem(row, 3, QTableWidgetItem(str(new_z)))
+            
+            self.save_table_to_config()
+            self.log(f"轨道组(ID: {group_id}) 坐标已更新: X={new_x}, Y={new_y}, Z={new_z}")
 
     def log(self, message):
-        """向日志窗口添加消息"""
         self.log_text.append(message)
         self.log_text.verticalScrollBar().setValue(self.log_text.verticalScrollBar().maximum())
 
     def update_progress(self, value):
-        """更新进度条"""
         self.progress_bar.setValue(value)
 
     def start_conversion(self):
-        """开始转换过程"""
-        # 保存表格数据到配置
         self.save_table_to_config()
-
-        # 从UI获取配置
         self.config['data_version'] = self.version_combo.currentData()
         self.config['input_file'] = self.input_file_edit.text()
         self.config['type'] = self.type_combo.currentData()
         self.config['output_file'] = self.output_file_edit.text()
 
-        # 验证输入
-        if not self.config['input_file']:
-            QMessageBox.critical(self, "错误", "请选择输入NBS文件！")
+        if not self.config['input_file'] or not os.path.exists(self.config['input_file']):
+            QMessageBox.critical(self, "错误", "请选择有效的NBS文件！")
             return
-
-        if not os.path.exists(self.config['input_file']):
-            QMessageBox.critical(self, "错误", "输入文件不存在！")
-            return
-
         if not self.config['output_file']:
             QMessageBox.critical(self, "错误", "请设置输出文件名！")
             return
 
-        # 清空日志
         self.log_text.clear()
-
-        # 显示进度条
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
-
-        # 在后台线程中运行转换
         self.log(">>> 开始处理NBS文件...")
 
         try:
@@ -712,24 +632,17 @@ class MainWindow(QMainWindow):
             all_notes = song.notes
             global_max_tick = song.header.song_length
 
-            # 清空输出文件（如果是mcfunction）
             if self.config['type'] == 'mcfunction':
                 with open(self.config['output_file'] + ".mcfunction", 'w') as f:
                     f.write("\n")
 
-            # 创建处理器
             processor = GroupProcessor(all_notes, global_max_tick, self.config, self.group_config)
             processor.set_log_callback(self.log)
             processor.set_progress_callback(self.update_progress)
 
-            # 根据输出类型设置处理器
             output_type = self.config["type"]
             if output_type == "schematic":
-                # 检查是否有轨道组使用阶梯模式
-                use_staircase = any(
-                    config.get("generation_mode") == "staircase" 
-                    for config in self.group_config.values()
-                )
+                use_staircase = any(config.get("generation_mode") == "staircase" for config in self.group_config.values())
                 if use_staircase:
                     processor.set_output_strategy(StaircaseSchematicOutputStrategy())
                 else:
@@ -739,39 +652,24 @@ class MainWindow(QMainWindow):
             else:
                 raise ValueError(f"不支持的输出类型: {output_type}")
 
-            # 执行处理
             processor.process()
-
             self.log(f"\n>>> 处理完成！总音乐长度: {global_max_tick} ticks")
             self.log(f"输出文件: {self.config['output_file']}")
             self.status_bar.showMessage("转换成功完成！")
-
-            # 保存当前配置
             self.save_last_config()
 
         except Exception as e:
-            self.log(f"\n>>> 处理过程中发生错误:")
-            self.log(f"错误信息: {str(e)}")
-            self.log(traceback.format_exc())
+            self.log(f"\n>>> 处理过程中发生错误:\n{str(e)}\n{traceback.format_exc()}")
             QMessageBox.critical(self, "错误", f"处理过程中发生错误:\n{str(e)}")
             self.status_bar.showMessage("转换失败！")
         finally:
             self.progress_bar.setValue(100)
 
     def save_config(self):
-        """保存配置到文件"""
         self.save_table_to_config()
-
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, "保存配置", "", "JSON Files (*.json)"
-        )
-
+        file_path, _ = QFileDialog.getSaveFileName(self, "保存配置", "", "JSON Files (*.json)")
         if file_path:
-            config = {
-                'app_config': self.config,
-                'group_config': self.group_config
-            }
-
+            config = {'app_config': self.config, 'group_config': self.group_config}
             try:
                 with open(file_path, 'w') as f:
                     json.dump(config, f, indent=2)
@@ -780,48 +678,32 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "错误", f"保存配置失败:\n{str(e)}")
 
     def load_config(self):
-        """从文件加载配置"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "加载配置", "", "JSON Files (*.json)"
-        )
-
+        file_path, _ = QFileDialog.getOpenFileName(self, "加载配置", "", "JSON Files (*.json)")
         if file_path:
             try:
                 with open(file_path, 'r') as f:
                     config = json.load(f)
-
-                # 更新配置
                 self.config = config['app_config']
                 self.group_config = config['group_config']
-
-                # 更新UI
                 self.update_ui_from_config()
                 self.update_groups_table()
-
                 self.log(f"配置已从 {file_path} 加载")
             except Exception as e:
                 QMessageBox.critical(self, "错误", f"加载配置失败:\n{str(e)}")
 
     def save_last_config(self):
-        """保存最后一次成功的配置"""
-        config = {
-            'app_config': self.config,
-            'group_config': self.group_config
-        }
-
         try:
+            config = {'app_config': self.config, 'group_config': self.group_config}
             with open('last_config.json', 'w') as f:
                 json.dump(config, f, indent=2)
-        except Exception as e:
-            print("error when saving last config:", e)
+        except Exception:
+            pass
 
     def load_last_config(self):
-        """加载最后一次成功的配置"""
         try:
             if os.path.exists('last_config.json'):
                 with open('last_config.json', 'r') as f:
                     config = json.load(f)
-
                 self.config = config['app_config']
                 self.group_config = config['group_config']
                 self.update_ui_from_config()
@@ -829,21 +711,13 @@ class MainWindow(QMainWindow):
             pass
 
     def update_ui_from_config(self):
-        """从配置更新UI元素"""
-        # 输入文件
         self.input_file_edit.setText(self.config.get('input_file', ''))
-
-        # 输出文件
         self.output_file_edit.setText(self.config.get('output_file', 'output'))
-
-        # Minecraft版本
         version = self.config.get('data_version', MINECRAFT_VERSIONS[0])
         for i in range(self.version_combo.count()):
             if self.version_combo.itemData(i) == version:
                 self.version_combo.setCurrentIndex(i)
                 break
-
-        # 输出类型
         output_type = self.config.get('type', 'schematic')
         for i in range(self.type_combo.count()):
             if self.type_combo.itemData(i) == output_type:
@@ -851,11 +725,10 @@ class MainWindow(QMainWindow):
                 break
 
     def parse_layers(self, layers_text):
-        """解析轨道层配置文本"""
         layers = []
         if layers_text:
             try:
                 layers = [int(l.strip()) for l in layers_text.split(",") if l.strip()]
             except ValueError:
-                layers = [0]  # 默认值
+                layers = [0]
         return layers if layers else [0]
