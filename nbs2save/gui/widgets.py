@@ -1,11 +1,11 @@
 from PyQt6.QtWidgets import (
     QPushButton, QLineEdit, QComboBox, QGroupBox, QWidget, QSizePolicy, 
     QVBoxLayout, QHBoxLayout, QApplication, QGraphicsDropShadowEffect, QStyle,
-    QStackedWidget, QLabel
+    QStackedWidget, QLabel, QGraphicsOpacityEffect
 )
 from PyQt6.QtCore import (
     Qt, QPropertyAnimation, QEasingCurve, QRect, pyqtSignal, 
-    QParallelAnimationGroup, QPoint, QObject, pyqtProperty, QRectF
+    QParallelAnimationGroup, QPoint, QObject, pyqtProperty, QRectF, QAbstractAnimation
 )
 from PyQt6.QtGui import (
     QPalette, QColor, QPainter, QBrush, QPen, QIcon, QFont, QTextOption
@@ -190,8 +190,10 @@ class FluentButton(QPushButton):
         self.bg_anim.setEndValue(self.bg_normal)
         self.bg_anim.start()
         
-        # 大小恢复
+        # 大小恢复 (同时恢复默认动画参数)
         self.scale_anim.stop()
+        self.scale_anim.setDuration(350)
+        self.scale_anim.setEasingCurve(QEasingCurve.Type.OutBack)
         self.scale_anim.setEndValue(1.0)
         self.scale_anim.start()
         super().leaveEvent(event)
@@ -226,7 +228,7 @@ class FluentButton(QPushButton):
 
 
 class FluentCard(QWidget):
-    """ 圆角卡片容器 """
+    """ 圆角卡片容器 - 带入场淡入动画 """
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setStyleSheet("""
@@ -236,11 +238,31 @@ class FluentCard(QWidget):
                 border-radius: 10px;
             }
         """)
+        
+        self._fade_anim_done = False
+        self._opacity_effect = QGraphicsOpacityEffect(self)
+        self._opacity_effect.setOpacity(0.0)
+        self.setGraphicsEffect(self._opacity_effect)
+        
+        self._fade_anim = QPropertyAnimation(self._opacity_effect, b"opacity")
+        self._fade_anim.setDuration(300)
+        self._fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._fade_anim.setStartValue(0.0)
+        self._fade_anim.setEndValue(1.0)
+        self._fade_anim.finished.connect(self._on_fade_finished)
+        
+    def _on_fade_finished(self):
+        self._fade_anim_done = True
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(15)
         shadow.setColor(QColor(0, 0, 0, 6))
         shadow.setOffset(0, 3)
         self.setGraphicsEffect(shadow)
+        
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not self._fade_anim_done and self._fade_anim.state() != QPropertyAnimation.State.Running:
+            self._fade_anim.start()
 
 class SmoothStackedWidget(QStackedWidget):
     """ 滑动切换容器 """
@@ -252,11 +274,24 @@ class SmoothStackedWidget(QStackedWidget):
         self.m_now = 0
         self.m_next = 0
         self.m_active = False
+        self.anim_group = None
+        self.l_now = None
+        self.l_next = None
 
     def setCurrentIndex(self, index):
         if self.m_active or self.currentIndex() == index:
             super().setCurrentIndex(index)
             return
+        
+        if self.anim_group is not None:
+            try:
+                if self.anim_group.state() == QAbstractAnimation.State.Running:
+                    self.anim_group.stop()
+                self.anim_group.finished.disconnect()
+                self.anim_group.deleteLater()
+            except:
+                pass
+        
         self.m_now = self.currentIndex()
         self.m_next = index
         self.m_active = True
@@ -311,15 +346,19 @@ class SmoothStackedWidget(QStackedWidget):
     def animationDone(self):
         self.setCurrentIndex_original(self.m_next)
         self.widget(self.m_next).show()
-        self.l_now.deleteLater()
-        self.l_next.deleteLater()
+        if self.l_now is not None:
+            self.l_now.deleteLater()
+            self.l_now = None
+        if self.l_next is not None:
+            self.l_next.deleteLater()
+            self.l_next = None
         self.m_active = False
 
     def setCurrentIndex_original(self, index):
         super().setCurrentIndex(index)
 
 class NavButton(QPushButton):
-    """ 顶部导航按钮 (Tab) """
+    """ 顶部导航按钮 (Tab) - 带平滑颜色过渡动画 """
     def __init__(self, text, icon_char=None, parent=None):
         super().__init__(text, parent)
         self.setCheckable(True)
@@ -336,6 +375,27 @@ class NavButton(QPushButton):
         
         self.text_normal = QColor(100, 100, 100)
         self.text_checked = PRIMARY_BG
+        
+        # 颜色动画系统
+        self.color_wrapper = ColorAnimWrapper(self)
+        self.color_wrapper.color = self.bg_normal
+        self.bg_anim = QPropertyAnimation(self.color_wrapper, b"color")
+        self.bg_anim.setDuration(200)
+        self.bg_anim.setEasingCurve(QEasingCurve.Type.OutQuad)
+
+    def enterEvent(self, event):
+        if not self.isChecked():
+            self.bg_anim.stop()
+            self.bg_anim.setEndValue(self.bg_hover)
+            self.bg_anim.start()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        if not self.isChecked():
+            self.bg_anim.stop()
+            self.bg_anim.setEndValue(self.bg_normal)
+            self.bg_anim.start()
+        super().leaveEvent(event)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -347,8 +407,9 @@ class NavButton(QPushButton):
             painter.setBrush(QBrush(self.bg_checked))
             painter.setPen(QPen(QColor(0,0,0,20), 1))
             painter.drawRoundedRect(rect, 6, 6)
-        elif self.underMouse():
-            painter.setBrush(QBrush(self.bg_hover))
+        else:
+            current_bg = self.color_wrapper.color
+            painter.setBrush(QBrush(current_bg))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(rect, 6, 6)
             
