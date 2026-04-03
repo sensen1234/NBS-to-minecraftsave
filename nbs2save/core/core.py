@@ -90,6 +90,20 @@ class OutputFormatStrategy(ABC):
         processor: GroupProcessor实例
         """
         pass
+    
+    @staticmethod
+    def get_note_block_info(note: Note):
+        """根据 instrument 获取音符方块属性。"""
+        from .constants import INSTRUMENT_MAPPING, INSTRUMENT_BLOCK_MAPPING, NOTEPITCH_MAPPING
+        instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
+        base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
+        note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
+        return instrument, base_block, note_pitch
+
+    @staticmethod
+    def is_sand_block(block: str) -> bool:
+        """简单规则：以 'sand' 结尾即视为沙子类方块。"""
+        return block.endswith("sand")
 
 
 # --------------------------
@@ -218,13 +232,26 @@ class GroupProcessor(ABC):
     def load_notes(self, all_notes: List[Note]):
         """
         过滤出属于本组的音符，并按 tick 升序排序。
-        同时计算组内最大 tick。
+        同时计算组内最大 tick，并预先按 tick 分组音符以提高性能。
         """
         self.notes = sorted(
             (n for n in all_notes if n.layer in self.layers),
             key=lambda note: note.tick,
         )
         self.group_max_tick = max(note.tick for note in self.notes) if self.notes else 0
+        
+        # 预先按 tick 分组音符，提高后续查找效率
+        self.notes_by_tick = defaultdict(list)
+        self.max_pan_by_tick_dir = defaultdict(lambda: {'left': 0, 'right': 0})
+        
+        for note in self.notes:
+            self.notes_by_tick[note.tick].append(note)
+            pan = self._calculate_pan(note)
+            if pan != 0:
+                direction = 'right' if pan > 0 else 'left'
+                abs_pan = abs(pan)
+                if abs_pan > self.max_pan_by_tick_dir[note.tick][direction]:
+                    self.max_pan_by_tick_dir[note.tick][direction] = abs_pan
 
     @staticmethod
     def _calculate_pan(note: Note) -> int:
@@ -235,27 +262,21 @@ class GroupProcessor(ABC):
         """
         return int(round(note.panning / 10))
 
-    @staticmethod
-    def _get_max_pan(notes: List[Note], tick: int, direction: int) -> int:
+    def _get_max_pan(self, tick: int, direction: int) -> int:
         """
         在指定 tick 内，找出给定方向（1=右，-1=左）的最大绝对偏移值。
         用于决定声像平台长度。
+        使用预先缓存的数据提高性能。
         
         参数:
-        notes: 音符列表
         tick: 当前tick
         direction: 方向（1=右，-1=左）
         
         返回:
         带符号的最大偏移值
         """
-        max_pan = 0
-        for note in notes:
-            if note.tick == tick:
-                pan = GroupProcessor._calculate_pan(note)
-                # 检查音符方向是否与指定方向一致
-                if pan * direction > 0:
-                    max_pan = max(max_pan, abs(pan))
+        dir_key = 'right' if direction == 1 else 'left'
+        max_pan = self.max_pan_by_tick_dir[tick][dir_key]
         return max_pan * direction  # 带符号
 
     # ----------------------
@@ -327,15 +348,21 @@ class GroupProcessor(ABC):
         3. 检测位置冲突；
         4. 生成声像平台；
         5. 生成音符方块。
+        使用预先分组好的音符数据提高效率。
         """
-        current_tick = 0
-        note_index = 0  # 已处理到的音符索引
-
-        while current_tick <= self.global_max_tick:
+        # 只处理有音符的 tick 或必要的 tick（用于基础结构）
+        ticks_with_notes = sorted(self.notes_by_tick.keys())
+        if not ticks_with_notes:
+            return
+            
+        min_tick = ticks_with_notes[0]
+        max_tick = max(self.group_max_tick, self.global_max_tick)
+        
+        for current_tick in range(0, max_tick + 1):
             # 1. 更新进度
             progress = (
-                int((current_tick / self.global_max_tick) * 100)
-                if self.global_max_tick
+                int((current_tick / max_tick) * 100)
+                if max_tick
                 else 0
             )
             self.update_progress(progress)
@@ -343,37 +370,33 @@ class GroupProcessor(ABC):
             # 2. 基础结构（时钟、走线）
             self.output_strategy.write_base_structures(self, current_tick)
 
-            # 3. 收集当前 tick 的音符
-            active_notes: List[Note] = []
-            while note_index < len(self.notes) and self.notes[note_index].tick == current_tick:
-                active_notes.append(self.notes[note_index])
-                note_index += 1
+            # 3. 从预先分组的数据中获取当前 tick 的音符
+            active_notes = self.notes_by_tick.get(current_tick, [])
 
-            # 4. 检测坐标冲突：同一 tick 同一 z 不允许重复
-            occupied_positions = set()
-            for note in active_notes:
-                pan = self._calculate_pan(note)
-                z_pos = self.base_z + pan
-                position = (current_tick, z_pos)
-                if position in occupied_positions:
-                    raise Exception(
-                        f"位置冲突! Tick {current_tick}, Z={z_pos} 位置已有音符\n"
-                        f"冲突音符: Layer={note.layer}, Key={note.key}, Instrument={note.instrument}"
-                    )
-                occupied_positions.add(position)
+            if active_notes:
+                # 4. 检测坐标冲突：同一 tick 同一 z 不允许重复
+                occupied_positions = set()
+                for note in active_notes:
+                    pan = self._calculate_pan(note)
+                    z_pos = self.base_z + pan
+                    position = (current_tick, z_pos)
+                    if position in occupied_positions:
+                        raise Exception(
+                            f"位置冲突! Tick {current_tick}, Z={z_pos} 位置已有音符\n"
+                            f"冲突音符: Layer={note.layer}, Key={note.key}, Instrument={note.instrument}"
+                        )
+                    occupied_positions.add(position)
 
-            # 5. 生成声像平台（左优先）
-            pan_directions = set()
-            for note in active_notes:
-                pan = self._calculate_pan(note)
-                if pan != 0:
-                    pan_directions.add(1 if pan > 0 else -1)
+                # 5. 生成声像平台（左优先）
+                pan_directions = set()
+                for note in active_notes:
+                    pan = self._calculate_pan(note)
+                    if pan != 0:
+                        pan_directions.add(1 if pan > 0 else -1)
 
-            for direction in sorted(pan_directions, reverse=True):  # 左(-1) > 右(1)
-                self.output_strategy.write_pan_platform(self, current_tick, direction)
+                for direction in sorted(pan_directions, reverse=True):  # 左(-1) > 右(1)
+                    self.output_strategy.write_pan_platform(self, current_tick, direction)
 
-            # 6. 生成音符
-            for note in active_notes:
-                self.output_strategy.write_note(self, note)
-
-            current_tick += 1
+                # 6. 生成音符
+                for note in active_notes:
+                    self.output_strategy.write_note(self, note)
