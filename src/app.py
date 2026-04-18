@@ -7,12 +7,18 @@ GUI入口
 """
 
 import sys
+
 from PyQt6.QtWidgets import QApplication
 
 from nbs2save.gui.window import MainWindow
 
-if __name__ == "__main__":
+
+def main() -> None:
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
