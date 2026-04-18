@@ -41,7 +41,7 @@ pip install pynbs mcschematic PyQt6
 ```
 
 ## 使用方法
-详细使用请见[wiki.md](wiki.md)
+详细使用请见[wiki.md](/documents/wiki.md)
 ### 基本流程
 1. 运行程序：
    - GUI模式：`python app.py`
