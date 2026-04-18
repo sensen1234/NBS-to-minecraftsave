@@ -53,7 +53,7 @@ class CLIProcessor(GroupProcessor):
 # --------------------------
 # 程序入口
 # --------------------------
-if __name__ == "__main__":
+def main() -> None:
     processor = CLIProcessor()
 
     # 根据配置选择输出策略
@@ -76,3 +76,7 @@ if __name__ == "__main__":
     # 执行处理
     processor.process()
     print("处理完成!")
+
+
+if __name__ == "__main__":
+    main()
