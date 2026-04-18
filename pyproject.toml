@@ -1,12 +1,8 @@
 [project]
 name = "NBS-to-minecraftsave"
 version = "2.4.0"
-description = "将 Note Block Studio 制作的音乐文件（.nbs）转换为 Minecraft 中可播放格式的强大工具"
+description = "将 Note Block Studio 制作的音乐文件（`.nbs`）转换为 Minecraft 中可播放格式的强大工具"
 readme = "README.md"
 license-files = ["LICENSE"]
 requires-python = ">=3.10, <3.14"
-dependencies = [
-    "mcschematic~=11.4",
-    "pynbs~=1.1",
-    "pyqt6~=6.11",
-]
+dependencies = ["mcschematic~=11.4", "pynbs~=1.1", "pyqt6~=6.11"]
