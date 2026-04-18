@@ -19,7 +19,7 @@ from mcschematic import Version
 # NBS文件中的每个音符都有一个instrument属性，表示该音符使用的乐器类型
 # Minecraft中的音符盒方块也有对应的instrument属性，用于指定播放的音色
 # 该映射表确保NBS中的乐器能够正确转换为Minecraft中的对应音色
-# 
+#
 # 映射说明:
 # 0  -> "harp"           钢琴(竖琴)音色，Minecraft默认音色
 # 1  -> "bass"           贝斯音色
@@ -38,10 +38,22 @@ from mcschematic import Version
 # 14 -> "banjo"          班卓琴音色
 # 15 -> "pling"          电钢琴音色
 INSTRUMENT_MAPPING = {
-    0: "harp", 1: "bass", 2: "basedrum", 3: "snare", 4: "hat",
-    5: "guitar", 6: "flute", 7: "bell", 8: "chime", 9: "xylophone",
-    10: "iron_xylophone", 11: "cow_bell", 12: "didgeridoo", 13: "bit",
-    14: "banjo", 15: "pling"
+    0: "harp",
+    1: "bass",
+    2: "basedrum",
+    3: "snare",
+    4: "hat",
+    5: "guitar",
+    6: "flute",
+    7: "bell",
+    8: "chime",
+    9: "xylophone",
+    10: "iron_xylophone",
+    11: "cow_bell",
+    12: "didgeridoo",
+    13: "bit",
+    14: "banjo",
+    15: "pling",
 }
 
 # --------------------------
@@ -69,10 +81,22 @@ INSTRUMENT_MAPPING = {
 # 14 -> "minecraft:hay_block"     班卓琴音色对应干草块
 # 15 -> "minecraft:glowstone"     电钢琴音色对应荧石方块
 INSTRUMENT_BLOCK_MAPPING = {
-    0: "minecraft:dirt", 1: "minecraft:oak_planks", 2: "minecraft:stone", 3: "minecraft:sand",
-    4: "minecraft:glass", 5: "minecraft:white_wool", 6: "minecraft:clay", 7: "minecraft:gold_block",
-    8: "minecraft:packed_ice", 9: "minecraft:bone_block", 10: "minecraft:iron_block", 11: "minecraft:soul_sand",
-    12: "minecraft:pumpkin", 13: "minecraft:emerald_block", 14: "minecraft:hay_block", 15: "minecraft:glowstone"
+    0: "minecraft:dirt",
+    1: "minecraft:oak_planks",
+    2: "minecraft:stone",
+    3: "minecraft:sand",
+    4: "minecraft:glass",
+    5: "minecraft:white_wool",
+    6: "minecraft:clay",
+    7: "minecraft:gold_block",
+    8: "minecraft:packed_ice",
+    9: "minecraft:bone_block",
+    10: "minecraft:iron_block",
+    11: "minecraft:soul_sand",
+    12: "minecraft:pumpkin",
+    13: "minecraft:emerald_block",
+    14: "minecraft:hay_block",
+    15: "minecraft:glowstone",
 }
 
 # --------------------------
@@ -82,7 +106,7 @@ INSTRUMENT_BLOCK_MAPPING = {
 # NBS文件中的每个音符都有一个key属性，表示该音符的音高(MIDI键值)
 # Minecraft中的音符盒方块有note属性，用于指定播放的音高(0-24)
 # 该映射表将MIDI键值(33-57)映射到Minecraft音高值(0-24)
-# 
+#
 # MIDI键值范围说明:
 # - MIDI标准中，中央C的键值为60
 # - NBS文件中常用的键值范围大约在33-57之间
@@ -139,5 +163,5 @@ MINECRAFT_VERSIONS = [
     Version.JE_1_14_2,
     Version.JE_1_14_1,
     Version.JE_1_14,
-    Version.JE_1_13_2
+    Version.JE_1_13_2,
 ]

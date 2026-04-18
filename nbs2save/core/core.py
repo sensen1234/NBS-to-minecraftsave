@@ -20,12 +20,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
-from mcschematic import MCSchematic
 from collections import defaultdict
 from pynbs import Note
-
-from .constants import INSTRUMENT_MAPPING, INSTRUMENT_BLOCK_MAPPING, NOTEPITCH_MAPPING
-from .config import GENERATE_CONFIG, GROUP_CONFIG
 
 
 # --------------------------
@@ -36,56 +32,56 @@ class OutputFormatStrategy(ABC):
     定义输出格式的策略接口
     不同的输出格式（如mcfunction、schematic）需要实现这个接口
     """
-    
+
     @abstractmethod
     def initialize(self, processor: GroupProcessor):
         """
         初始化输出格式
-        
+
         参数:
         processor: GroupProcessor实例
         """
         pass
-    
+
     @abstractmethod
     def write_base_structures(self, processor: GroupProcessor, tick: int):
         """
         写入基础结构
-        
+
         参数:
         processor: GroupProcessor实例
         tick: 当前tick
         """
         pass
-    
+
     @abstractmethod
     def write_pan_platform(self, processor: GroupProcessor, tick: int, direction: int):
         """
         写入声像平台
-        
+
         参数:
         processor: GroupProcessor实例
         tick: 当前tick
         direction: 方向（1=右，-1=左）
         """
         pass
-    
+
     @abstractmethod
     def write_note(self, processor: GroupProcessor, note: Note):
         """
         写入音符
-        
+
         参数:
         processor: GroupProcessor实例
         note: 要写入的音符
         """
         pass
-    
+
     @abstractmethod
     def finalize(self, processor: GroupProcessor):
         """
         完成输出
-        
+
         参数:
         processor: GroupProcessor实例
         """
@@ -167,7 +163,7 @@ class GroupProcessor(ABC):
     def set_output_strategy(self, strategy: OutputFormatStrategy):
         """
         设置输出格式策略
-        
+
         参数:
         strategy: OutputFormatStrategy实例
         """
@@ -182,7 +178,7 @@ class GroupProcessor(ABC):
         # 检查是否设置了输出策略
         if self.output_strategy is None:
             raise ValueError("未设置输出格式策略，请先调用set_output_strategy方法")
-            
+
         for group_id, config in self.group_config.items():
             self.log(f"\n>> 处理轨道组 {group_id}:")
             self.log(f"├─ 包含轨道: {config['layers']}")
@@ -194,7 +190,9 @@ class GroupProcessor(ABC):
             self.base_x, self.base_y, self.base_z = map(int, config["base_coords"])
             self.base_block = config["block"]["base"]
             self.cover_block = config["block"]["cover"]
-            self.generation_mode = config.get("generation_mode", "default")  # 获取生成模式
+            self.generation_mode = config.get(
+                "generation_mode", "default"
+            )  # 获取生成模式
             self.layers = set(config["layers"])
             self.tick_status = defaultdict(lambda: {"left": False, "right": False})
 
@@ -208,7 +206,7 @@ class GroupProcessor(ABC):
 
             # 核心生成
             self.process_group()
-            
+
         # 完成处理
         self.output_strategy.finalize(self)
 
@@ -240,12 +238,12 @@ class GroupProcessor(ABC):
         """
         在指定 tick 内，找出给定方向（1=右，-1=左）的最大绝对偏移值。
         用于决定声像平台长度。
-        
+
         参数:
         notes: 音符列表
         tick: 当前tick
         direction: 方向（1=右，-1=左）
-        
+
         返回:
         带符号的最大偏移值
         """
@@ -265,10 +263,10 @@ class GroupProcessor(ABC):
         """
         计算音符在Minecraft世界中的坐标位置
         子类可以重写此方法以实现不同的坐标计算逻辑
-        
+
         参数:
         note: 要计算坐标的音符
-        
+
         返回:
         (x, y, z) 三元组，表示音符在Minecraft世界中的坐标
         """
@@ -280,7 +278,7 @@ class GroupProcessor(ABC):
     def get_platform_start_z(self) -> int:
         """
         获取平台起始Z坐标（主干道位置）
-        
+
         返回:
         平台起始Z坐标
         """
@@ -289,11 +287,11 @@ class GroupProcessor(ABC):
     def calculate_platform_end_z(self, max_pan_offset: int, direction: int) -> int:
         """
         计算平台结束Z坐标
-        
+
         参数:
         max_pan_offset: 最大偏移量
         direction: 方向（1=右，-1=左）
-        
+
         返回:
         平台结束Z坐标
         """
@@ -306,10 +304,10 @@ class GroupProcessor(ABC):
     def get_wire_start_z(self, direction: int) -> int:
         """
         获取红石线起始Z坐标（从主干道旁边开始）
-        
+
         参数:
         direction: 方向（1=右，-1=左）
-        
+
         返回:
         红石线起始Z坐标
         """
@@ -345,7 +343,10 @@ class GroupProcessor(ABC):
 
             # 3. 收集当前 tick 的音符
             active_notes: List[Note] = []
-            while note_index < len(self.notes) and self.notes[note_index].tick == current_tick:
+            while (
+                note_index < len(self.notes)
+                and self.notes[note_index].tick == current_tick
+            ):
                 active_notes.append(self.notes[note_index])
                 note_index += 1
 

@@ -14,26 +14,27 @@ Minecraft函数文件生成器
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import List
 
 from pynbs import Note
 
 from .core import GroupProcessor, OutputFormatStrategy
 from .constants import INSTRUMENT_MAPPING, INSTRUMENT_BLOCK_MAPPING, NOTEPITCH_MAPPING
 
+
 # --------------------------
 # 命令文件生成策略
 # --------------------------
 class McFunctionOutputStrategy(OutputFormatStrategy):
     """输出为 .mcfunction 命令文件的策略实现。"""
-    
+
     def __init__(self):
         self.commands = []  # 存储生成的命令
 
     def initialize(self, processor: GroupProcessor):
         """
         初始化输出格式，清空命令列表
-        
+
         参数:
         processor: GroupProcessor实例
         """
@@ -46,7 +47,7 @@ class McFunctionOutputStrategy(OutputFormatStrategy):
     def write_base_structures(self, processor: GroupProcessor, tick: int):
         """
         写入基础结构
-        
+
         参数:
         processor: GroupProcessor实例
         tick: 当前tick
@@ -64,7 +65,7 @@ class McFunctionOutputStrategy(OutputFormatStrategy):
     def write_pan_platform(self, processor: GroupProcessor, tick: int, direction: int):
         """
         写入声像平台
-        
+
         参数:
         processor: GroupProcessor实例
         tick: 当前tick
@@ -106,7 +107,7 @@ class McFunctionOutputStrategy(OutputFormatStrategy):
     def write_note(self, processor: GroupProcessor, note: Note):
         """
         写入音符
-        
+
         参数:
         processor: GroupProcessor实例
         note: 要写入的音符
@@ -131,7 +132,7 @@ class McFunctionOutputStrategy(OutputFormatStrategy):
     def finalize(self, processor: GroupProcessor):
         """
         完成输出，将所有命令写入文件
-        
+
         参数:
         processor: GroupProcessor实例
         """
@@ -142,7 +143,7 @@ class McFunctionOutputStrategy(OutputFormatStrategy):
     def _write_commands(self, processor: GroupProcessor, commands: List[str]):
         """
         将命令添加到命令列表中
-        
+
         参数:
         processor: GroupProcessor实例
         commands: 要添加的命令列表

@@ -15,15 +15,14 @@ Minecraft结构文件生成器
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import List
 
 from mcschematic import MCSchematic
-from collections import defaultdict
 from pynbs import Note
 
 from .constants import INSTRUMENT_MAPPING, INSTRUMENT_BLOCK_MAPPING, NOTEPITCH_MAPPING
-from .config import GENERATE_CONFIG, GROUP_CONFIG
 from .core import GroupProcessor, OutputFormatStrategy
+
 
 # --------------------------
 # 结构文件生成策略
@@ -37,7 +36,7 @@ class SchematicOutputStrategy(OutputFormatStrategy):
     def initialize(self, processor: GroupProcessor):
         """
         初始化输出格式
-        
+
         参数:
         processor: GroupProcessor实例
         """
@@ -48,7 +47,7 @@ class SchematicOutputStrategy(OutputFormatStrategy):
     def write_base_structures(self, processor: GroupProcessor, tick: int):
         """
         写入基础结构
-        
+
         参数:
         processor: GroupProcessor实例
         tick: 当前tick
@@ -56,16 +55,25 @@ class SchematicOutputStrategy(OutputFormatStrategy):
         # 计算当前tick在X轴上的位置（每个tick占2格）
         tick_x = processor.base_x + tick * 2
         # 设置基础平台方块
-        self.schem.setBlock((tick_x, processor.base_y, processor.base_z), processor.cover_block)
-        self.schem.setBlock((tick_x, processor.base_y - 1, processor.base_z), processor.base_block)
+        self.schem.setBlock(
+            (tick_x, processor.base_y, processor.base_z), processor.cover_block
+        )
+        self.schem.setBlock(
+            (tick_x, processor.base_y - 1, processor.base_z), processor.base_block
+        )
         # 设置红石中继器（用于时钟信号）
-        self.schem.setBlock((tick_x - 1, processor.base_y, processor.base_z), "minecraft:repeater[delay=1,facing=west]")
-        self.schem.setBlock((tick_x - 1, processor.base_y - 1, processor.base_z), processor.base_block)
+        self.schem.setBlock(
+            (tick_x - 1, processor.base_y, processor.base_z),
+            "minecraft:repeater[delay=1,facing=west]",
+        )
+        self.schem.setBlock(
+            (tick_x - 1, processor.base_y - 1, processor.base_z), processor.base_block
+        )
 
     def write_pan_platform(self, processor: GroupProcessor, tick: int, direction: int):
         """
         写入声像平台
-        
+
         参数:
         processor: GroupProcessor实例
         tick: 当前tick
@@ -85,13 +93,15 @@ class SchematicOutputStrategy(OutputFormatStrategy):
         platform_start_z = processor.get_platform_start_z()  # 平台起始Z坐标（主干道）
         platform_end_z = processor.calculate_platform_end_z(max_pan_offset, direction)
         step = 1 if direction == 1 else -1
-        
+
         # 生成平台基座方块
         for z in range(platform_start_z, platform_end_z + step, step):
             self.schem.setBlock((tick_x, processor.base_y - 1, z), processor.base_block)
 
         # 在主干道位置放置覆盖方块
-        self.schem.setBlock((tick_x, processor.base_y, platform_start_z), processor.cover_block)
+        self.schem.setBlock(
+            (tick_x, processor.base_y, platform_start_z), processor.cover_block
+        )
 
         # 如果偏移量大于1，需要铺设红石线连接
         if abs(max_pan_offset) > 1:
@@ -101,7 +111,7 @@ class SchematicOutputStrategy(OutputFormatStrategy):
             for z in range(wire_start_z, wire_end_z + step, step):
                 self.schem.setBlock(
                     (tick_x, processor.base_y, z),
-                    "minecraft:redstone_wire[north=side,south=side]"
+                    "minecraft:redstone_wire[north=side,south=side]",
                 )
 
         processor.tick_status[tick]["right" if direction == 1 else "left"] = True
@@ -109,7 +119,7 @@ class SchematicOutputStrategy(OutputFormatStrategy):
     def write_note(self, processor: GroupProcessor, note: Note):
         """
         写入音符
-        
+
         参数:
         processor: GroupProcessor实例
         note: 要写入的音符
@@ -122,7 +132,7 @@ class SchematicOutputStrategy(OutputFormatStrategy):
         # 设置音符方块
         self.schem.setBlock(
             (tick_x, y, z_pos),
-            f"minecraft:note_block[note={note_pitch},instrument={instrument}]"
+            f"minecraft:note_block[note={note_pitch},instrument={instrument}]",
         )
         # 设置基座方块
         self.schem.setBlock((tick_x, y - 1, z_pos), base_block)
@@ -134,7 +144,7 @@ class SchematicOutputStrategy(OutputFormatStrategy):
     def finalize(self, processor: GroupProcessor):
         """
         完成输出，保存结构文件
-        
+
         参数:
         processor: GroupProcessor实例
         """

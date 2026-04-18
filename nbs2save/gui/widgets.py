@@ -1,15 +1,28 @@
 from PyQt6.QtWidgets import (
-    QPushButton, QLineEdit, QComboBox, QGroupBox, QWidget, QSizePolicy, 
-    QVBoxLayout, QHBoxLayout, QApplication, QGraphicsDropShadowEffect, QStyle,
-    QStackedWidget, QLabel, QGraphicsOpacityEffect
+    QPushButton,
+    QLineEdit,
+    QComboBox,
+    QGroupBox,
+    QWidget,
+    QSizePolicy,
+    QVBoxLayout,
+    QHBoxLayout,
+    QGraphicsDropShadowEffect,
+    QStackedWidget,
+    QLabel,
+    QGraphicsOpacityEffect,
 )
 from PyQt6.QtCore import (
-    Qt, QPropertyAnimation, QEasingCurve, QRect, pyqtSignal, 
-    QParallelAnimationGroup, QPoint, QObject, pyqtProperty, QRectF, QAbstractAnimation
+    Qt,
+    QPropertyAnimation,
+    QEasingCurve,
+    QRect,
+    QParallelAnimationGroup,
+    QPoint,
+    pyqtProperty,
+    QAbstractAnimation,
 )
-from PyQt6.QtGui import (
-    QPalette, QColor, QPainter, QBrush, QPen, QIcon, QFont, QTextOption
-)
+from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QFont
 
 from .animations import ColorAnimWrapper
 
@@ -19,23 +32,24 @@ from .animations import ColorAnimWrapper
 
 # 1. 主题色 (Primary - 亮蓝)
 # 用于 "开始转换", "选点", "添加"
-PRIMARY_BG    = QColor(0, 120, 212)
+PRIMARY_BG = QColor(0, 120, 212)
 PRIMARY_HOVER = QColor(20, 135, 230)
 PRIMARY_PRESS = QColor(0, 90, 180)
 
 # 2. 浅灰色系 (Standard - 优化版)
 # 用于 "加载配置", "保存配置" -> 调整为 #f0f0f0 风格
 STD_BG_NORMAL = QColor(240, 240, 240)  # #f0f0f0 浅灰基底
-STD_BG_HOVER  = QColor(232, 232, 232)  # 悬停稍深
-STD_BG_PRESS  = QColor(220, 220, 220)  # 按下更深
-STD_BORDER    = QColor(210, 210, 210)  # 边框
-STD_TEXT      = QColor(30, 30, 30)     # 深灰文字
+STD_BG_HOVER = QColor(232, 232, 232)  # 悬停稍深
+STD_BG_PRESS = QColor(220, 220, 220)  # 按下更深
+STD_BORDER = QColor(210, 210, 210)  # 边框
+STD_TEXT = QColor(30, 30, 30)  # 深灰文字
 
 # 3. 危险色 (Danger - 红)
 # 用于 "退出", "删除"
-DANGER_BG     = QColor(215, 45, 45)
-DANGER_HOVER  = QColor(235, 60, 60)
-DANGER_PRESS  = QColor(180, 30, 30)
+DANGER_BG = QColor(215, 45, 45)
+DANGER_HOVER = QColor(235, 60, 60)
+DANGER_PRESS = QColor(180, 30, 30)
+
 
 class FluentButton(QPushButton):
     """
@@ -43,37 +57,39 @@ class FluentButton(QPushButton):
     - 优化了浅灰色按钮的视觉表现
     - 平滑的 Color Fade + Scale Bounce 动画
     """
+
     def __init__(self, text, icon=None, parent=None, is_primary=False, is_danger=False):
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        if icon: self.setIcon(icon)
+        if icon:
+            self.setIcon(icon)
 
-        self.setMinimumHeight(36) 
+        self.setMinimumHeight(36)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        
+
         # 字体设置
         font = QFont("Segoe UI", 9)
-        if is_primary or is_danger: 
+        if is_primary or is_danger:
             font.setBold(True)
         self.setFont(font)
-        
+
         self.is_primary = is_primary
         self.is_danger = is_danger
-        
+
         self._scale_val = 1.0
-        
+
         # --- 动画系统 ---
-        
+
         # 1. 颜色过渡动画 (Smooth Fade)
         self.color_wrapper = ColorAnimWrapper(self)
         self.bg_anim = QPropertyAnimation(self.color_wrapper, b"color")
-        self.bg_anim.setDuration(200) # 200ms 平滑过渡
+        self.bg_anim.setDuration(200)  # 200ms 平滑过渡
         self.bg_anim.setEasingCurve(QEasingCurve.Type.OutQuad)
-        
+
         # 2. 缩放回弹动画 (Scale Bounce)
         self.scale_anim = QPropertyAnimation(self, b"scale_prop")
         self.scale_anim.setDuration(350)
-        self.scale_anim.setEasingCurve(QEasingCurve.Type.OutBack) # Q弹回馈
+        self.scale_anim.setEasingCurve(QEasingCurve.Type.OutBack)  # Q弹回馈
 
         # 初始化颜色
         self._update_target_colors()
@@ -83,7 +99,7 @@ class FluentButton(QPushButton):
         if not (self.is_primary or self.is_danger):
             self.shadow = QGraphicsDropShadowEffect(self)
             self.shadow.setBlurRadius(8)
-            self.shadow.setColor(QColor(0, 0, 0, 8)) # 极淡阴影
+            self.shadow.setColor(QColor(0, 0, 0, 8))  # 极淡阴影
             self.shadow.setOffset(0, 1)
             self.setGraphicsEffect(self.shadow)
 
@@ -130,32 +146,34 @@ class FluentButton(QPushButton):
         painter.translate(-w / 2, -h / 2)
 
         rect = self.rect().adjusted(1, 1, -1, -1)
-        
+
         # 2. 绘制背景
         current_bg = self.color_wrapper.color
         painter.setBrush(QBrush(current_bg))
-        
+
         # 绘制边框
         if self.is_primary or self.is_danger:
             painter.setPen(Qt.PenStyle.NoPen)
         else:
             painter.setPen(QPen(self.border_color, 1))
-            
+
         painter.drawRoundedRect(rect, 6, 6)
 
         # 3. 底部立体线 (仅浅灰按钮)
         if not self.is_primary and not self.is_danger and not self.isDown():
             # 颜色加深一点点做立体感
-            darker_line = QColor(0,0,0, 15)
+            darker_line = QColor(0, 0, 0, 15)
             painter.setPen(QPen(darker_line, 1))
-            painter.drawLine(rect.left()+6, rect.bottom(), rect.right()-6, rect.bottom())
+            painter.drawLine(
+                rect.left() + 6, rect.bottom(), rect.right() - 6, rect.bottom()
+            )
 
         # 4. 手动绘制文字 (防止遮挡)
         painter.setPen(self.text_color)
-        
+
         icon = self.icon()
         text = self.text()
-        
+
         if not icon.isNull():
             icon_size = 16
             # 简单估算宽度以居中
@@ -163,12 +181,18 @@ class FluentButton(QPushButton):
             text_w = fm.horizontalAdvance(text)
             content_w = icon_size + 8 + text_w
             start_x = (w - content_w) / 2
-            
-            icon_rect = QRect(int(start_x), int((h - icon_size)/2), icon_size, icon_size)
+
+            icon_rect = QRect(
+                int(start_x), int((h - icon_size) / 2), icon_size, icon_size
+            )
             icon.paint(painter, icon_rect, Qt.AlignmentFlag.AlignCenter)
-            
+
             text_rect = QRect(int(start_x + icon_size + 8), 0, int(text_w + 10), h)
-            painter.drawText(text_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, text)
+            painter.drawText(
+                text_rect,
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+                text,
+            )
         else:
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
 
@@ -177,7 +201,7 @@ class FluentButton(QPushButton):
         self.bg_anim.stop()
         self.bg_anim.setEndValue(self.bg_hover)
         self.bg_anim.start()
-        
+
         # 微微放大 (Scale Up)
         self.scale_anim.stop()
         self.scale_anim.setEndValue(1.02)
@@ -189,7 +213,7 @@ class FluentButton(QPushButton):
         self.bg_anim.stop()
         self.bg_anim.setEndValue(self.bg_normal)
         self.bg_anim.start()
-        
+
         # 大小恢复 (同时恢复默认动画参数)
         self.scale_anim.stop()
         self.scale_anim.setDuration(350)
@@ -203,7 +227,7 @@ class FluentButton(QPushButton):
         self.bg_anim.stop()
         self.bg_anim.setEndValue(self.bg_press)
         self.bg_anim.start()
-        
+
         # 明显缩小 (Click Feedback)
         self.scale_anim.stop()
         self.scale_anim.setDuration(100)
@@ -217,7 +241,7 @@ class FluentButton(QPushButton):
         self.bg_anim.stop()
         self.bg_anim.setEndValue(self.bg_hover)
         self.bg_anim.start()
-        
+
         # Q弹回位
         self.scale_anim.stop()
         self.scale_anim.setDuration(400)
@@ -228,7 +252,8 @@ class FluentButton(QPushButton):
 
 
 class FluentCard(QWidget):
-    """ 圆角卡片容器 - 带入场淡入动画 """
+    """圆角卡片容器 - 带入场淡入动画"""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setStyleSheet("""
@@ -238,19 +263,19 @@ class FluentCard(QWidget):
                 border-radius: 10px;
             }
         """)
-        
+
         self._fade_anim_done = False
         self._opacity_effect = QGraphicsOpacityEffect(self)
         self._opacity_effect.setOpacity(0.0)
         self.setGraphicsEffect(self._opacity_effect)
-        
+
         self._fade_anim = QPropertyAnimation(self._opacity_effect, b"opacity")
         self._fade_anim.setDuration(300)
         self._fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._fade_anim.setStartValue(0.0)
         self._fade_anim.setEndValue(1.0)
         self._fade_anim.finished.connect(self._on_fade_finished)
-        
+
     def _on_fade_finished(self):
         self._fade_anim_done = True
         shadow = QGraphicsDropShadowEffect(self)
@@ -258,18 +283,23 @@ class FluentCard(QWidget):
         shadow.setColor(QColor(0, 0, 0, 6))
         shadow.setOffset(0, 3)
         self.setGraphicsEffect(shadow)
-        
+
     def showEvent(self, event):
         super().showEvent(event)
-        if not self._fade_anim_done and self._fade_anim.state() != QPropertyAnimation.State.Running:
+        if (
+            not self._fade_anim_done
+            and self._fade_anim.state() != QPropertyAnimation.State.Running
+        ):
             self._fade_anim.start()
 
+
 class SmoothStackedWidget(QStackedWidget):
-    """ 滑动切换容器 """
+    """滑动切换容器"""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.m_direction = Qt.Orientation.Horizontal
-        self.m_speed = 300 
+        self.m_speed = 300
         self.m_animationtype = QEasingCurve.Type.OutCubic
         self.m_now = 0
         self.m_next = 0
@@ -282,26 +312,27 @@ class SmoothStackedWidget(QStackedWidget):
         if self.m_active or self.currentIndex() == index:
             super().setCurrentIndex(index)
             return
-        
+
         if self.anim_group is not None:
             try:
                 if self.anim_group.state() == QAbstractAnimation.State.Running:
                     self.anim_group.stop()
                 self.anim_group.finished.disconnect()
                 self.anim_group.deleteLater()
-            except:
+            except Exception:
                 pass
-        
+
         self.m_now = self.currentIndex()
         self.m_next = index
         self.m_active = True
         offset_x = self.frameRect().width()
-        if index > self.m_now: offset_x = -offset_x
-        
+        if index > self.m_now:
+            offset_x = -offset_x
+
         w_next = self.widget(index)
         w_now = self.widget(self.m_now)
         w_next.setGeometry(0, 0, self.width(), self.height())
-        
+
         p_now = w_now.grab()
         p_next = w_next.grab()
 
@@ -357,8 +388,10 @@ class SmoothStackedWidget(QStackedWidget):
     def setCurrentIndex_original(self, index):
         super().setCurrentIndex(index)
 
+
 class NavButton(QPushButton):
-    """ 顶部导航按钮 (Tab) - 带平滑颜色过渡动画 """
+    """顶部导航按钮 (Tab) - 带平滑颜色过渡动画"""
+
     def __init__(self, text, icon_char=None, parent=None):
         super().__init__(text, parent)
         self.setCheckable(True)
@@ -367,15 +400,15 @@ class NavButton(QPushButton):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setFont(QFont("Segoe UI", 10))
         self.icon_char = icon_char
-        
+
         # 颜色定义
-        self.bg_normal = QColor(0,0,0,0)
-        self.bg_hover = QColor(0,0,0,10)
+        self.bg_normal = QColor(0, 0, 0, 0)
+        self.bg_hover = QColor(0, 0, 0, 10)
         self.bg_checked = QColor(255, 255, 255)
-        
+
         self.text_normal = QColor(100, 100, 100)
         self.text_checked = PRIMARY_BG
-        
+
         # 颜色动画系统
         self.color_wrapper = ColorAnimWrapper(self)
         self.color_wrapper.color = self.bg_normal
@@ -400,19 +433,19 @@ class NavButton(QPushButton):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
+
         rect = self.rect().adjusted(2, 2, -2, -2)
-        
+
         if self.isChecked():
             painter.setBrush(QBrush(self.bg_checked))
-            painter.setPen(QPen(QColor(0,0,0,20), 1))
+            painter.setPen(QPen(QColor(0, 0, 0, 20), 1))
             painter.drawRoundedRect(rect, 6, 6)
         else:
             current_bg = self.color_wrapper.color
             painter.setBrush(QBrush(current_bg))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(rect, 6, 6)
-            
+
         if self.isChecked():
             painter.setPen(self.text_checked)
             font = self.font()
@@ -420,8 +453,9 @@ class NavButton(QPushButton):
             painter.setFont(font)
         else:
             painter.setPen(self.text_normal)
-            
+
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self.text())
+
 
 class FluentTabWidget(QWidget):
     def __init__(self, parent=None):
@@ -471,11 +505,13 @@ class FluentLineEdit(QLineEdit):
         self.setMinimumHeight(34)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
+
 class FluentComboBox(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumHeight(34)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
 
 class FluentGroupBox(QGroupBox):
     def __init__(self, title="", parent=None):
