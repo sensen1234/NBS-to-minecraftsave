@@ -1,24 +1,36 @@
 # NBS-to-minecraftsave
 
-一个将NBS（Note Block Studio）音乐文件转换为Minecraft可用格式的工具，支持生成WorldEdit schematic文件和Minecraft数据包函数。
-## 严禁使用本程序用于生成与《花之舞》(Flower Dance）有关的nbs!!!! 如需生成，请联系我获取授权。
-## 严禁将本程序用于商业用途（如有需要需授权）
-## 使用本程序生成的作品如发布到视频平台（如BiliBili Youtube 抖音 Acfun 快手  等等）  需要在视频简介标注使用本程序生成  
+> 🎵 将 Note Block Studio 制作的音乐文件（`.nbs`）转换为 Minecraft 中可播放格式的强大工具
+
+<p align="center">
+  <a href="https://github.com/sensen1234/NBS-to-minecraftsave/releases"><img src="https://img.shields.io/github/v/release/sensen1234/NBS-to-minecraftsave?label=Version&color=blue" alt="GitHub release (latest by date)"/></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.8%2B-brightgreen?logo=python" alt="Python Version"/></a>
+  <a href="https://github.com/sensen1234/NBS-to-minecraftsave"><img src="https://img.shields.io/badge/Minecraft-JE%201.13--26.1.1-5C2D91?logo=minecraft" alt="Minecraft Version"/></a>
+  <a href="https://github.com/sensen1234/NBS-to-minecraftsave/blob/master/LICENSE"><img src="https://img.shields.io/github/license/sensen1234/NBS-to-minecraftsave?color=yellow" alt="License"/></a>
+  <a href="https://github.com/sensen1234/NBS-to-minecraftsave/issues"><img src="https://img.shields.io/github/issues/sensen1234/NBS-to-minecraftsave?color=important" alt="GitHub issues"/></a>
+  <a href="https://github.com/sensen1234/NBS-to-minecraftsave/stargazers"><img src="https://img.shields.io/github/stars/sensen1234/NBS-to-minecraftsave?style=social" alt="GitHub stars"/></a>
+</p>
+
+---
+## 声明：
+**严禁使用本程序用于生成与《花之舞》(Flower Dance)有关的nbs 如需生成，请联系[sensen1234](https://github.com/sensen1234)获取授权。**  
+**严禁将本程序用于商业用途（如有需要需授权）**  
+**使用本程序生成的作品如发布到视频平台（如BiliBili Youtube 抖音 Acfun 快手  等等）  需要在视频简介标注使用本程序生成**    
 
 ## 功能特点
 
 ### 已实现功能
-- 将NBS文件转换为**Minecraft数据包（.mcfunction）**
-- 将NBS文件转换为**WorldEdit schematic（.schem）文件**
-- 提供直观的GUI操作界面
-  - 支持左右声相偏移设置
-  - 支持多轨道组管理
-  - 可设置偏移位置音符判断规则
-  - 自由配置每个轨道组的基础方块、覆盖方块及坐标位置
-  - 支持两种生成模式：默认模式和阶梯向下模式
+- [x] 将NBS文件转换为**Minecraft数据包（.mcfunction）**
+- [x] 将NBS文件转换为**WorldEdit schematic（.schem）文件**
+- [x] 提供直观的GUI操作界面
+  - [x] 支持左右声相偏移设置
+  - [x] 支持多轨道组管理
+  - [x] 可设置偏移位置音符判断规则
+  - [x] 自由配置每个轨道组的基础方块、覆盖方块及坐标位置
+  - [x] 支持两种生成模式：默认模式和阶梯向下模式
 
 ### 待实现功能
-- 更完善的GUI选点功能
+- [ ] 更完善的GUI选点功能
 
 ## 安装说明
 
@@ -29,7 +41,7 @@ pip install pynbs mcschematic PyQt6
 ```
 
 ## 使用方法
-
+详细使用请见[wiki.md](wiki.md)
 ### 基本流程
 1. 运行程序：
    - GUI模式：`python app.py`
