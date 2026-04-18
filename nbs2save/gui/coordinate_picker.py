@@ -40,8 +40,8 @@ class TrackGroupItem(QGraphicsRectItem):
             # --- 动画包装器 ---
             self.anim_wrapper = GraphicsItemAnimWrapper(self)
             self.pos_anim = QPropertyAnimation(self.anim_wrapper, b"pos")
-            self.pos_anim.setDuration(400) # 动画时长 400ms
-            self.pos_anim.setEasingCurve(QEasingCurve.Type.OutBack) # 略微回弹的效果
+            self.pos_anim.setDuration(300)
+            self.pos_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         else:
             self.setPen(QPen(QColor(220, 220, 220), 1, Qt.PenStyle.SolidLine))
             self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable) 
@@ -61,7 +61,8 @@ class TrackGroupItem(QGraphicsRectItem):
     def move_smoothly_to(self, x, y):
         """平滑移动到指定位置 (x, -y)"""
         if self.anim_wrapper:
-            self.pos_anim.stop()
+            if self.pos_anim.state() == QPropertyAnimation.State.Running:
+                self.pos_anim.stop()
             self.pos_anim.setStartValue(self.pos())
             self.pos_anim.setEndValue(QPointF(float(x), -float(y)))
             self.pos_anim.start()
@@ -80,8 +81,7 @@ class TrackGroupItem(QGraphicsRectItem):
     def mousePressEvent(self, event):
         if self.is_active:
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            # 停止当前可能正在进行的动画，防止冲突
-            if(self.pos_anim.state() == QPropertyAnimation.State.Running):
+            if self.pos_anim.state() == QPropertyAnimation.State.Running:
                 self.pos_anim.stop()
         super().mousePressEvent(event)
 

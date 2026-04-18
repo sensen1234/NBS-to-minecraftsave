@@ -32,6 +32,12 @@ class AnimationUtils:
             # 对于顶层窗口，直接做透明度通常最稳健，geometry 动画可能导致闪烁
             # 这里的 scale 预留给子控件使用
             pass
+        
+        widget._fade_in_anim = group
+        
+        def on_finished():
+            widget._fade_in_anim = None
+        group.finished.connect(on_finished)
             
         group.start()
 
