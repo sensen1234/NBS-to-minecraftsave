@@ -25,7 +25,6 @@ from ..core.constants import MINECRAFT_VERSIONS
 from ..core.core import GroupProcessor
 from ..core.schematic import SchematicOutputStrategy
 from ..core.mcfunction import McFunctionOutputStrategy
-from ..core.staircase_schematic import StaircaseSchematicOutputStrategy
 
 from .widgets import (
     FluentButton,
@@ -176,6 +175,7 @@ class MainWindow(QMainWindow):
                     "base": "minecraft:iron_block",
                     "cover": "minecraft:iron_block",
                 },
+                "generation_mode": "default",
             }
         }
 
@@ -602,15 +602,7 @@ class MainWindow(QMainWindow):
             proc.set_progress_callback(self.update_progress)
 
             if self.config["type"] == "schematic":
-                stair = any(
-                    c.get("generation_mode") == "staircase"
-                    for c in self.group_config.values()
-                )
-                proc.set_output_strategy(
-                    StaircaseSchematicOutputStrategy()
-                    if stair
-                    else SchematicOutputStrategy()
-                )
+                proc.set_output_strategy(SchematicOutputStrategy())
             else:
                 proc.set_output_strategy(McFunctionOutputStrategy())
 

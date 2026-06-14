@@ -60,8 +60,9 @@ GROUP_CONFIG = {
         },
         # generation_mode: 生成模式
         # 可选值:
-        #   'default'    -> 默认生成模式（当前schematic.py的实现）
-        #   'staircase'  -> 阶梯向下生成模式（偏移>=3时启用阶梯效果）
+        #   'default'       -> 默认生成模式（当前schematic.py的实现）
+        #   'staircase'     -> 阶梯向下生成模式（偏移>=3时启用阶梯效果）
+        #   'staircase_up'  -> 阶梯向上生成模式（偏移>=3时启用阶梯效果）
         "generation_mode": "default",
     },
 }

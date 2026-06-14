@@ -12,9 +12,6 @@ from nbs2save.core.config import GENERATE_CONFIG, GROUP_CONFIG
 from nbs2save.core.core import GroupProcessor
 from nbs2save.core.mcfunction import McFunctionOutputStrategy
 from nbs2save.core.schematic import SchematicOutputStrategy
-from nbs2save.core.staircase_schematic import (
-    StaircaseSchematicOutputStrategy,  # 新增导入
-)
 
 
 # --------------------------
@@ -56,20 +53,12 @@ class CLIProcessor(GroupProcessor):
 def main() -> None:
     processor = CLIProcessor()
 
-    # 根据配置选择输出策略
+    # 根据配置选择默认输出策略（核心会根据每组的生成模式自动选择对应策略）
     output_type = GENERATE_CONFIG["type"]
     if output_type == "mcfunction":
         processor.set_output_strategy(McFunctionOutputStrategy())
     elif output_type == "schematic":
-        # 检查是否有轨道组使用阶梯模式
-        use_staircase = any(
-            config.get("generation_mode") == "staircase"
-            for config in GROUP_CONFIG.values()
-        )
-        if use_staircase:
-            processor.set_output_strategy(StaircaseSchematicOutputStrategy())
-        else:
-            processor.set_output_strategy(SchematicOutputStrategy())
+        processor.set_output_strategy(SchematicOutputStrategy())
     else:
         raise ValueError(f"不支持的输出类型: {output_type}")
 

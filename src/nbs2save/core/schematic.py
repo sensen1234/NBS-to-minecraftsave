@@ -40,7 +40,8 @@ class SchematicOutputStrategy(OutputFormatStrategy):
         参数:
         processor: GroupProcessor实例
         """
-        self.schem = MCSchematic()  # 重新初始化
+        if self.schem is None:
+            self.schem = MCSchematic()
         # 验证配置
         self.validate_config(processor)
 
@@ -202,9 +203,3 @@ class SchematicProcessor(GroupProcessor):
     def _write(self, commands: List[str]):
         """向后兼容的方法。"""
         pass
-
-    def process(self):
-        """前置校验 + 父类流程 + 最终保存。"""
-        # 验证配置
-        SchematicOutputStrategy.validate_config(self)
-        super().process()

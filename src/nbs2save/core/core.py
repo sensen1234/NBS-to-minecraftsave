@@ -162,23 +162,76 @@ class GroupProcessor(ABC):
     # ----------------------
     def set_output_strategy(self, strategy: OutputFormatStrategy):
         """
-        设置输出格式策略
+        设置默认输出格式策略
 
         参数:
         strategy: OutputFormatStrategy实例
         """
         self.output_strategy = strategy
+
+    def _pick_strategy_for_group(self, generation_mode: str) -> OutputFormatStrategy:
+        """
+        根据生成模式和输出类型选择对应的输出策略。
+        子类可以重写此方法以提供自定义策略选择逻辑。
+        """
+        from .schematic import SchematicOutputStrategy
+        from .staircase_schematic import StaircaseSchematicOutputStrategy, StaircaseUpSchematicOutputStrategy
+        from .mcfunction import McFunctionOutputStrategy
+
+        output_type = self.config.get("type", "schematic")
+
+        if generation_mode == "staircase":
+            return StaircaseSchematicOutputStrategy()
+        elif generation_mode == "staircase_up":
+            return StaircaseUpSchematicOutputStrategy()
+        elif generation_mode == "default":
+            if output_type == "mcfunction":
+                return McFunctionOutputStrategy()
+            return SchematicOutputStrategy()
+        else:
+            # 回退到已设置的默认策略
+            if self.output_strategy is not None:
+                return self.output_strategy
+            return SchematicOutputStrategy()
+
+    def _switch_strategy(self, new_strategy: OutputFormatStrategy):
+        """
+        切换到新策略，并将当前策略持有的共享资源传递给新策略。
+        仅当策略类型实际发生变化时才执行切换。
+        """
+        old_strategy = self.output_strategy
+        if type(old_strategy) is type(new_strategy):
+            return  # 同类型策略，无需切换
+
+        # 传递schematic（所有schematic策略共享同一个MCSchematic对象）
+        schem = getattr(old_strategy, "schem", None)
+        if schem is not None:
+            new_strategy.schem = schem
+
+        self.output_strategy = new_strategy
+        # 初始化新策略（schem已存在时不会重建）
         self.output_strategy.initialize(self)
 
     # ----------------------
     # 主流程入口
     # ----------------------
     def process(self):
-        """遍历所有轨道组，依次处理。"""
-        # 检查是否设置了输出策略
+        """遍历所有轨道组，依次处理。完整生命周期：初始化 -> 逐组处理 -> 完成。"""
+        # 检查是否设置了输出策略（作为默认回退）
         if self.output_strategy is None:
             raise ValueError("未设置输出格式策略，请先调用set_output_strategy方法")
 
+        # 初始化默认策略
+        self.output_strategy.initialize(self)
+
+        # 处理所有轨道组
+        self._process_groups()
+
+        # 完成处理
+        self.output_strategy.finalize(self)
+
+    def _process_groups(self):
+        """逐个处理轨道组，根据每组的生成模式选择对应的输出策略。"""
         for group_id, config in self.group_config.items():
             self.log(f"\n>> 处理轨道组 {group_id}:")
             self.log(f"├─ 包含轨道: {config['layers']}")
@@ -196,6 +249,11 @@ class GroupProcessor(ABC):
             self.layers = set(config["layers"])
             self.tick_status = defaultdict(lambda: {"left": False, "right": False})
 
+            # 根据生成模式选择策略
+            group_strategy = self._pick_strategy_for_group(self.generation_mode)
+            if group_strategy is not self.output_strategy:
+                self._switch_strategy(group_strategy)
+
             # 加载本组音符
             self.load_notes(self.all_notes)
             if self.notes:
@@ -206,9 +264,6 @@ class GroupProcessor(ABC):
 
             # 核心生成
             self.process_group()
-
-        # 完成处理
-        self.output_strategy.finalize(self)
 
     # ----------------------
     # 音符加载 & 工具方法

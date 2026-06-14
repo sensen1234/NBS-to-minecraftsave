@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Minecraft阶梯向下结构文件生成器
+Minecraft阶梯结构文件生成器
 ----------------------
-负责将Note列表转换成Minecraft .schem结构文件，采用阶梯向下布局。
+负责将Note列表转换成Minecraft .schem结构文件，支持阶梯向下和阶梯向上布局。
 
 主要流程
 1. 根据group_config把Note划分到不同轨道组。
@@ -39,7 +39,8 @@ class StaircaseSchematicOutputStrategy(OutputFormatStrategy):
         参数:
         processor: GroupProcessor实例
         """
-        self.schem = MCSchematic()  # 重新初始化
+        if self.schem is None:
+            self.schem = MCSchematic()
         # 验证配置
         self.validate_config(processor)
 
@@ -228,6 +229,144 @@ class StaircaseSchematicOutputStrategy(OutputFormatStrategy):
     # ----------------------
     def validate_config(self, processor: GroupProcessor):
         """确保 config 包含必需的键。"""
+        required_keys = ["output_file", "data_version"]
+        for key in required_keys:
+            if key not in processor.config:
+                raise ValueError(f"配置缺失: {key}")
+
+
+# --------------------------
+# 阶梯向上结构文件生成策略
+# --------------------------
+class StaircaseUpSchematicOutputStrategy(OutputFormatStrategy):
+    """输出为 .schem 结构文件的阶梯向上策略实现。"""
+
+    def __init__(self):
+        self.schem: MCSchematic = None
+
+    def initialize(self, processor: GroupProcessor):
+        if self.schem is None:
+            self.schem = MCSchematic()
+        self.validate_config(processor)
+
+    def write_base_structures(self, processor: GroupProcessor, tick: int):
+        tick_x = processor.base_x + tick * 2
+        self.schem.setBlock(
+            (tick_x, processor.base_y, processor.base_z), processor.cover_block
+        )
+        self.schem.setBlock(
+            (tick_x, processor.base_y - 1, processor.base_z), processor.base_block
+        )
+        self.schem.setBlock(
+            (tick_x - 1, processor.base_y, processor.base_z),
+            "minecraft:repeater[delay=1,facing=west]",
+        )
+        self.schem.setBlock(
+            (tick_x - 1, processor.base_y - 1, processor.base_z), processor.base_block
+        )
+
+    def write_pan_platform(self, processor: GroupProcessor, tick: int, direction: int):
+        """
+        写入声像平台（阶梯向上模式）
+        平台为阶梯结构：偏移 1 在 base_y - 1，偏移 N 在 base_y - 1 + (N - 1)。
+        每个偏移位置正好对应一个平台方块。
+        """
+        if processor.tick_status[tick]["right" if direction == 1 else "left"]:
+            return
+
+        max_pan_offset = processor._get_max_pan(processor.notes, tick, direction)
+        if max_pan_offset == 0:
+            return
+
+        tick_x = processor.base_x + tick * 2
+        platform_start_z = processor.get_platform_start_z()
+        platform_end_z = processor.calculate_platform_end_z(max_pan_offset, direction)
+        step = 1 if direction == 1 else -1
+
+        base_y = processor.base_y
+
+        # 生成平台阶梯：每个偏移位置对应一个阶梯方块
+        # 偏移 1（紧邻主干道）= base_y - 1
+        # 偏移 2 = base_y
+        # 偏移 N = base_y - 1 + (N - 1) = base_y + N - 2
+        for z in range(platform_start_z, platform_end_z + step, step):
+            distance = abs(z - platform_start_z)
+            y_pos = base_y - 1 + (distance - 1)
+            self.schem.setBlock((tick_x, y_pos, z), processor.base_block)
+
+        # 在主干道位置放置覆盖方块（始终在 base_y 层）
+        self.schem.setBlock(
+            (tick_x, processor.base_y, platform_start_z), processor.cover_block
+        )
+
+        # 如果偏移量大于1，需要铺设红石线连接
+        # 红石线沿阶梯的"顶面"铺设（每个阶梯方块上方 1 格）
+        if abs(max_pan_offset) > 1:
+            wire_start_z = processor.get_wire_start_z(direction)
+            wire_end_z = platform_end_z
+            for z in range(wire_start_z, wire_end_z + step, step):
+                distance = abs(z - platform_start_z)
+                # 红石线在阶梯方块上方 1 格
+                y_pos = base_y - 1 + (distance - 1) + 1
+                self.schem.setBlock(
+                    (tick_x, y_pos, z),
+                    "minecraft:redstone_wire[north=side,south=side]",
+                )
+
+        processor.tick_status[tick]["right" if direction == 1 else "left"] = True
+
+    def write_note(self, processor: GroupProcessor, note: Note):
+        """
+        写入音符（阶梯向上模式）
+        音符盒的坐标相对关系（distance = |pan_offset|）：
+        - 主干道音符（distance = 0）：音符盒在 base_y
+        - 偏移音符（distance > 0）：
+            - 音符盒基座 = base_y + distance - 3
+            - 音符盒 = 音符盒基座 + 1 = base_y + distance - 2
+        """
+        tick_x, base_y, z_pos = processor.get_note_position(note)
+        pan_offset = processor._calculate_pan(note)
+        distance = abs(pan_offset)
+
+        if distance == 0:
+            # 主干道音符：与默认模式一致
+            note_base_y = base_y - 1
+            note_block_y = base_y
+        else:
+            # 偏移音符：相对之前实现再下调 2 格
+            note_base_y = base_y + distance - 3
+            note_block_y = base_y + distance - 2
+
+        instrument, base_block, note_pitch = self.get_note_block_info(note)
+
+        # 设置音符方块（最上层）
+        self.schem.setBlock(
+            (tick_x, note_block_y, z_pos),
+            f"minecraft:note_block[note={note_pitch},instrument={instrument}]",
+        )
+        # 设置音符盒基座（在音符盒正下方 1 格）
+        self.schem.setBlock((tick_x, note_base_y, z_pos), base_block)
+
+        # 如果基座是沙子类方块，需要在下方添加屏障防止掉落
+        if self.is_sand_block(base_block):
+            self.schem.setBlock((tick_x, note_base_y - 1, z_pos), "minecraft:barrier")
+
+    def finalize(self, processor: GroupProcessor):
+        path = processor.config["output_file"]
+        self.schem.save(".", path.rsplit("/", 1)[-1], processor.config["data_version"])
+
+    @staticmethod
+    def get_note_block_info(note: Note):
+        instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
+        base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
+        note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
+        return instrument, base_block, note_pitch
+
+    @staticmethod
+    def is_sand_block(block: str) -> bool:
+        return block.endswith("sand")
+
+    def validate_config(self, processor: GroupProcessor):
         required_keys = ["output_file", "data_version"]
         for key in required_keys:
             if key not in processor.config:
