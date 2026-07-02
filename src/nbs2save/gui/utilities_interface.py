@@ -2,6 +2,8 @@
 实用工具界面 - 音量/距离速查表 + 双向计算器
 """
 
+import math
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget
 
@@ -21,8 +23,9 @@ from qfluentwidgets import (
 from PyQt6.QtWidgets import QTableWidgetItem, QHeaderView
 
 
-# ── 音量-距离原始数据 (音符盒音量 → 玩家可听距离) ──
-# 来源: Minecraft Java Edition 音符盒声学模型 (仅供参考)
+# ── 音量-距离参考数据 (仅用于参考表展示) ──
+# 拟合函数见下方 volume_to_distance / distance_to_volume, 由
+# tools/fit_volume_distance.py 用 numpy 最小二乘法拟合上述数据得到
 _RAW_DATA = [
     (100, 0),
     (90, 14),
@@ -36,59 +39,43 @@ _RAW_DATA = [
     (10, 46),
 ]
 
-# ── 拟合函数: 分段线性插值 ──
-# 在已知数据点之间做线性插值，提供任意音量↔距离的互查
 
+# ── 音量 ↔ 距离 拟合函数 ──
+# 由 tools/fit_volume_distance.py 拟合生成:
+#   模型:   dist = a + b * sqrt(100 - vol)
+#   反函数: vol = 100 - ((dist - a) / b)^2
+# 拟合精度: vol→dist R²≈0.9925, max_err≈2.5 格
+#          dist→vol R²≈0.9853, max_err≈7.3 %
 
-def _lerp(x, x0, y0, x1, y1):
-    """线性插值"""
-    if x1 == x0:
-        return y0
-    return y0 + (y - y0) * (x - x0) / (x1 - x0) if (y := y0) is not None else 0
+_VOL_DIST_A = -2.205685177017e-01  # 截距
+_VOL_DIST_B = 5.048336923320e+00   # sqrt(100 - vol) 项系数
 
 
 def volume_to_distance(vol_pct: float) -> float:
+    """音量百分比 (0-100) → 玩家可听距离 (格)
+
+    拟合模型: dist = a + b * sqrt(100 - vol)
+    边界: vol >= 100 返回 0; vol <= 0 返回 ~50 (物理上限)
     """
-    音量百分比 (0-100) → 玩家可听距离 (格)
-    使用分段线性插值，边界外推。
-    """
-    if vol_pct >= 100:
+    if vol_pct >= 100.0:
         return 0.0
-    if vol_pct <= 10:
-        # 低于 10% 时线性外推 (斜率约 0.2 格/%)
-        return 46.0 + (10.0 - vol_pct) * 0.2
-
-    # 在数据点间插值
-    for i in range(len(_RAW_DATA) - 1):
-        v0, d0 = _RAW_DATA[i]
-        v1, d1 = _RAW_DATA[i + 1]
-        if v1 <= vol_pct <= v0:
-            t = (vol_pct - v1) / (v0 - v1)
-            return d1 + t * (d0 - d1)
-
-    return 0.0
+    if vol_pct <= 0.0:
+        return _VOL_DIST_A + _VOL_DIST_B * 10.0
+    return _VOL_DIST_A + _VOL_DIST_B * math.sqrt(100.0 - vol_pct)
 
 
 def distance_to_volume(dist: float) -> float:
+    """玩家可听距离 (格) → 音量百分比 (0-100)
+
+    解析反函数: vol = 100 - ((dist - a) / b)^2
+    边界: dist <= 0 返回 100; dist >= 物理上限 返回 0
     """
-    玩家可听距离 (格) → 音量百分比 (0-100)
-    使用分段线性插值，边界外推。
-    """
-    if dist <= 0:
+    if dist <= 0.0:
         return 100.0
-    if dist >= 46:
-        # 超出最大距离时线性外推
-        return max(0.0, 10.0 - (dist - 46.0) * 0.2)
-
-    # 在数据点间插值 (距离是递增的)
-    for i in range(len(_RAW_DATA) - 1):
-        v0, d0 = _RAW_DATA[i]
-        v1, d1 = _RAW_DATA[i + 1]
-        if d0 <= dist <= d1:
-            t = (dist - d0) / (d1 - d0) if d1 != d0 else 0
-            return v0 + t * (v1 - v0)
-
-    return 100.0
+    max_dist = _VOL_DIST_A + _VOL_DIST_B * 10.0
+    if dist >= max_dist:
+        return 0.0
+    return 100.0 - ((dist - _VOL_DIST_A) / _VOL_DIST_B) ** 2
 
 
 class UtilitiesInterface(ScrollArea):
@@ -221,6 +208,16 @@ class UtilitiesInterface(ScrollArea):
         row.addWidget(swapBtn)
 
         cl.addLayout(row)
+
+        # 误差提示 (避免与上方参考表数据不一致而误导用户)
+        tip = CaptionLabel(
+            "本计算器基于 sqrt 拟合函数估算，与上方参考表数据可能存在 "
+            "±2.5 格 / ±7% 误差。需要精确值请查阅上表。",
+            card,
+        )
+        tip.setWordWrap(True)
+        tip.setStyleSheet("color: #888; font-size: 12px; margin-top: 4px;")
+        cl.addWidget(tip)
 
         # 信号 (防循环)
         self._updating = False
