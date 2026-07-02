@@ -28,6 +28,7 @@ from ..core.mcfunction import McFunctionOutputStrategy
 
 from .home_interface import HomeInterface
 from .groups_interface import GroupsInterface
+from .utilities_interface import UtilitiesInterface
 from .log_interface import LogInterface
 from .wiki_interface import WikiInterface
 from .about_interface import AboutInterface
@@ -112,6 +113,7 @@ class MainWindow(MSFluentWindow):
         self.homeInterface = HomeInterface(self)
         self.groupsInterface = GroupsInterface(self)
         self.groupsInterface.setMainWindow(self)
+        self.utilitiesInterface = UtilitiesInterface(self)
         self.wikiInterface = WikiInterface(self)
         self.logInterface = LogInterface(self)
         self.aboutInterface = AboutInterface(self)
@@ -123,6 +125,9 @@ class MainWindow(MSFluentWindow):
         )
         self.addSubInterface(
             self.groupsInterface, FluentIcon.TILES, "轨道组"
+        )
+        self.addSubInterface(
+            self.utilitiesInterface, FluentIcon.DEVELOPER_TOOLS, "实用工具"
         )
         self.addSubInterface(
             self.wikiInterface, FluentIcon.DICTIONARY, "使用文档"
