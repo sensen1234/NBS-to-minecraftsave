@@ -1,5 +1,5 @@
 """
-坐标选择对话框 - Fluent Design 风格
+坐标选择对话框 - QFluentWidgets 原生组件
 双视图（XY/XZ）、键盘微调、十字准星、拖拽定位
 """
 
@@ -10,12 +10,10 @@ from PyQt6.QtWidgets import (
     QGraphicsRectItem,
     QGraphicsItem,
     QLabel,
-    QSpinBox,
     QGridLayout,
     QHBoxLayout,
     QVBoxLayout,
     QWidget,
-    QToolButton,
     QFrame,
     QGraphicsTextItem,
 )
@@ -25,14 +23,33 @@ from PyQt6.QtGui import QPen, QBrush, QColor, QPainter, QFont, QKeyEvent
 from qfluentwidgets import (
     PrimaryPushButton,
     PushButton,
+    ToolButton,
+    TransparentToolButton,
     CardWidget,
+    HeaderCardWidget,
     SubtitleLabel,
     BodyLabel,
     CaptionLabel,
+    SpinBox,
     FluentIcon,
+    SegmentedWidget,
+    isDarkTheme,
 )
 
 from .animations import AnimationUtils, GraphicsItemAnimWrapper
+
+
+def _accent():
+    """返回当前主题的 accent 色"""
+    return QColor(0, 120, 216) if not isDarkTheme() else QColor(96, 205, 255)
+
+
+def _border():
+    return "#e0e0e0" if not isDarkTheme() else "#404040"
+
+
+def _surface():
+    return "#f5f5f5" if not isDarkTheme() else "#2b2b2b"
 
 
 def get_color_by_id(group_id, is_active=False):
@@ -42,8 +59,11 @@ def get_color_by_id(group_id, is_active=False):
     return QColor.fromHsl(int(hue), 200, 140, 180)
 
 
+# ── 图形组件 ──
+
+
 class CrosshairItem(QGraphicsItem):
-    """十字准星 - 指示当前精确位置"""
+    """十字准星"""
 
     def __init__(self, size=24):
         super().__init__()
@@ -78,7 +98,7 @@ class CrosshairItem(QGraphicsItem):
 
 
 class TrackGroupItem(QGraphicsRectItem):
-    """代表轨道组位置的图元"""
+    """轨道组位置图元"""
 
     def __init__(
         self, x, y, group_id, is_active=True, on_move_callback=None, invert_y=True
@@ -171,14 +191,33 @@ class TrackGroupItem(QGraphicsRectItem):
 
 
 class GridScene(QGraphicsScene):
-    """带有网格背景和坐标标注的场景"""
+    """带网格背景和坐标标注的场景"""
 
     def __init__(self, parent=None, show_labels=True, v_axis_label="Y"):
         super().__init__(parent)
         self.grid_size = 10
         self._show_labels = show_labels
         self.v_axis_label = v_axis_label
-        self.setBackgroundBrush(QBrush(QColor(30, 30, 30)))
+        self._dark = isDarkTheme()
+        self.update_theme()
+
+    def update_theme(self):
+        self._dark = isDarkTheme()
+        if self._dark:
+            self._bg = QColor(30, 30, 30)
+            self._grid_minor = QColor(50, 50, 50)
+            self._grid_major = QColor(70, 70, 70)
+            self._axis_x = QColor(100, 255, 100, 100)
+            self._axis_y = QColor(100, 100, 255, 100)
+            self._label_color = QColor(100, 100, 100)
+        else:
+            self._bg = QColor(245, 245, 245)
+            self._grid_minor = QColor(220, 220, 220)
+            self._grid_major = QColor(190, 190, 190)
+            self._axis_x = QColor(80, 200, 80, 120)
+            self._axis_y = QColor(80, 80, 200, 120)
+            self._label_color = QColor(120, 120, 120)
+        self.setBackgroundBrush(QBrush(self._bg))
 
     def drawBackground(self, painter, rect):
         super().drawBackground(painter, rect)
@@ -195,7 +234,7 @@ class GridScene(QGraphicsScene):
             lines.append(QPointF(rect.left(), y))
             lines.append(QPointF(rect.right(), y))
 
-        pen = QPen(QColor(50, 50, 50))
+        pen = QPen(self._grid_minor)
         pen.setWidth(0)
         painter.setPen(pen)
         painter.drawLines(lines)
@@ -213,22 +252,22 @@ class GridScene(QGraphicsScene):
             big_grid_lines.append(QPointF(rect.left(), y))
             big_grid_lines.append(QPointF(rect.right(), y))
 
-        pen_big = QPen(QColor(70, 70, 70))
+        pen_big = QPen(self._grid_major)
         pen_big.setWidth(1)
         painter.setPen(pen_big)
         painter.drawLines(big_grid_lines)
 
         # 轴线
-        painter.setPen(QPen(QColor(100, 255, 100, 100), 2))
+        painter.setPen(QPen(self._axis_x, 2))
         painter.drawLine(int(rect.left()), 0, int(rect.right()), 0)
-        painter.setPen(QPen(QColor(100, 100, 255, 100), 2))
+        painter.setPen(QPen(self._axis_y, 2))
         painter.drawLine(0, int(rect.top()), 0, int(rect.bottom()))
 
     def drawForeground(self, painter, rect):
         super().drawForeground(painter, rect)
         if not self._show_labels:
             return
-        painter.setPen(QPen(QColor(100, 100, 100), 1))
+        painter.setPen(QPen(self._label_color, 1))
         font = QFont("Consolas", 7)
         painter.setFont(font)
         big_step = 50
@@ -249,7 +288,7 @@ class GridScene(QGraphicsScene):
 
 
 class PickerGraphicsView(QGraphicsView):
-    """支持键盘方向键微调坐标 + 鼠标滚轮缩放"""
+    """支持键盘微调 + 滚轮缩放"""
 
     def __init__(self, scene, parent=None):
         super().__init__(scene, parent)
@@ -286,8 +325,11 @@ class PickerGraphicsView(QGraphicsView):
         super().keyPressEvent(event)
 
 
+# ── 主对话框 ──
+
+
 class CoordinatePickerDialog(QDialog):
-    """坐标选择对话框 - Fluent Design 风格"""
+    """坐标选择对话框 - QFluentWidgets 原生组件"""
 
     VIEW_XY = "xy"
     VIEW_XZ = "xz"
@@ -317,6 +359,8 @@ class CoordinatePickerDialog(QDialog):
         QTimer.singleShot(50, lambda: AnimationUtils.fade_in_entry(self))
 
     def _build_ui(self):
+        dark = isDarkTheme()
+
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
@@ -332,12 +376,12 @@ class CoordinatePickerDialog(QDialog):
         cl.setContentsMargins(16, 16, 16, 16)
         cl.setSpacing(10)
 
-        # 标题
+        # 标题行
         color_lbl = QLabel()
         color_lbl.setFixedSize(14, 14)
         c = get_color_by_id(self.target_id, True)
         color_lbl.setStyleSheet(
-            f"background-color: rgb({c.red()},{c.green()},{c.blue()}); border-radius: 3px;"
+            f"background-color: rgb({c.red()},{c.green()},{c.blue()}); border-radius: 7px;"
         )
         title_row = QHBoxLayout()
         tt = SubtitleLabel(f"编辑 ID: {self.target_id}")
@@ -345,33 +389,40 @@ class CoordinatePickerDialog(QDialog):
         title_row.addWidget(tt)
         title_row.addStretch()
         cl.addLayout(title_row)
-        cl.addWidget(self._sep())
 
-        # 坐标输入
-        coord_grid = QGridLayout()
+        # 坐标输入 (SpinBox)
+        coord_group = QWidget()
+        coord_grid = QGridLayout(coord_group)
+        coord_grid.setContentsMargins(0, 0, 0, 0)
         coord_grid.setSpacing(8)
-        self.spin_x = self._add_coord(coord_grid, 0, "X (左右):", (-30000000, 30000000), self.x)
-        self.spin_y = self._add_coord(coord_grid, 1, "Y (高度):", (-64, 320), self.y)
-        self.spin_z = self._add_coord(coord_grid, 2, "Z (深度):", (-30000000, 30000000), self.z)
+
+        self.spin_x = self._make_spin("X", "左右", (-30000000, 30000000), self.x)
+        self.spin_y = self._make_spin("Y", "高度", (-64, 320), self.y)
+        self.spin_z = self._make_spin("Z", "深度", (-30000000, 30000000), self.z)
+
+        for row, (spin, label, tip) in enumerate([
+            (self.spin_x, "X", "左右"),
+            (self.spin_y, "Y", "高度"),
+            (self.spin_z, "Z", "深度"),
+        ]):
+            lbl = BodyLabel(f"{label} ({tip})")
+            lbl.setStyleSheet("font-size: 12px;")
+            coord_grid.addWidget(lbl, row, 0)
+            coord_grid.addWidget(spin, row, 1)
 
         self.spin_x.valueChanged.connect(self._on_spinbox_changed)
         self.spin_y.valueChanged.connect(self._on_spinbox_changed)
         self.spin_z.valueChanged.connect(self._on_z_changed)
 
-        cl.addLayout(coord_grid)
-        cl.addWidget(self._sep())
+        cl.addWidget(coord_group)
 
-        # 视图切换
-        view_row = QHBoxLayout()
-        view_row.setSpacing(6)
-        self.btn_xy = self._make_view_toggle("侧视图 (X-Y)", "xy")
-        self.btn_xz = self._make_view_toggle("俯视图 (X-Z)", "xz")
-        self.btn_xy.setChecked(True)
-        self._update_view_btn_styles()
-        view_row.addWidget(self.btn_xy)
-        view_row.addWidget(self.btn_xz)
-        cl.addLayout(view_row)
-        cl.addWidget(self._sep())
+        # 视图切换 (SegmentedWidget)
+        self.segWidget = SegmentedWidget(self)
+        self.segWidget.addItem("xy", "侧视图 (X-Y)")
+        self.segWidget.addItem("xz", "俯视图 (X-Z)")
+        self.segWidget.setCurrentItem("xy")
+        self.segWidget.currentItemChanged.connect(self._switch_view)
+        cl.addWidget(self.segWidget)
 
         # 确定按钮
         self._btn_ok = PrimaryPushButton("确定位置", self)
@@ -392,14 +443,13 @@ class CoordinatePickerDialog(QDialog):
 
         # 操作提示
         info = CaptionLabel(
-            "操作提示:\n"
-            "\u2022 拖动方块或修改数值调整坐标\n"
-            "\u2022 滚轮缩放 | 右键拖动平移\n"
-            "\u2022 方向键微调(\u00b11) | Shift+方向键(\u00b110)\n"
-            "\u2022 R键重置视图 | +/-缩放"
+            "拖动方块或修改数值调整坐标\n"
+            "滚轮缩放 | 右键拖动平移\n"
+            "方向键微调 | Shift+方向键(\u00b110)\n"
+            "R 重置视图 | +/- 缩放"
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color: #888; margin-top: 10px; line-height: 1.4;")
+        info.setStyleSheet("color: #888; margin-top: 8px; line-height: 1.5;")
         cl.addWidget(info)
         cl.addStretch(1)
 
@@ -407,22 +457,23 @@ class CoordinatePickerDialog(QDialog):
 
         # ── 右侧视图区域 ──
         vc = QWidget()
-        vc.setStyleSheet("background-color: #222; border-radius: 8px;")
+        vc.setStyleSheet(f"background-color: {'#222' if dark else '#f8f8f8'}; border-radius: 8px;")
         vl = QVBoxLayout(vc)
         vl.setContentsMargins(4, 4, 4, 4)
         vl.setSpacing(4)
 
-        # 工具栏
+        # 工具栏 (TransparentToolButton)
         tbw = QWidget()
-        tbw.setStyleSheet("background-color: #333; border-radius: 6px;")
+        tbw.setStyleSheet(f"background-color: {'#333' if dark else '#e8e8e8'}; border-radius: 6px;")
         tbh = QHBoxLayout(tbw)
         tbh.setContentsMargins(8, 4, 8, 4)
-        tbh.setSpacing(6)
-        tbh.addWidget(self._tb_btn("适应全部", self._fit_all))
-        tbh.addWidget(self._tb_btn("重置视图", self._reset_view))
+        tbh.setSpacing(4)
+
+        self._add_tb_btn(tbh, FluentIcon.FIT_PAGE, "适应全部", self._fit_all)
+        self._add_tb_btn(tbh, FluentIcon.BACK_TO_WINDOW, "重置视图", self._reset_view)
         tbh.addStretch()
-        tbh.addWidget(self._tb_btn("+", lambda: self.view.scale(1.25, 1.25)))
-        tbh.addWidget(self._tb_btn("-", lambda: self.view.scale(1 / 1.25, 1 / 1.25)))
+        self._add_tb_btn(tbh, FluentIcon.ZOOM_IN, "放大", lambda: self.view.scale(1.25, 1.25))
+        self._add_tb_btn(tbh, FluentIcon.ZOOM_OUT, "缩小", lambda: self.view.scale(1 / 1.25, 1 / 1.25))
         vl.addWidget(tbw)
 
         # 图形视图
@@ -442,7 +493,7 @@ class CoordinatePickerDialog(QDialog):
 
         # ── 底部状态栏 ──
         sb = QWidget()
-        sb.setStyleSheet("background-color: #f0f0f0; border-top: 1px solid #ddd;")
+        sb.setStyleSheet(f"background-color: {'#f0f0f0' if dark else '#f0f0f0'}; border-top: 1px solid {_border()};")
         sl = QHBoxLayout(sb)
         sl.setContentsMargins(20, 6, 20, 6)
         self.status_coord = CaptionLabel(
@@ -461,49 +512,21 @@ class CoordinatePickerDialog(QDialog):
 
     # ── 辅助 UI 方法 ──
 
-    @staticmethod
-    def _sep():
-        s = QFrame()
-        s.setFrameShape(QFrame.Shape.HLine)
-        s.setStyleSheet("background-color: #ddd; max-height: 1px;")
-        return s
-
-    def _add_coord(self, layout, row, label, sr, dv):
-        layout.addWidget(BodyLabel(label), row, 0)
-        spin = QSpinBox()
-        spin.setRange(*sr)
-        spin.setValue(dv)
-        layout.addWidget(spin, row, 1)
-        bs = QToolButton()
-        bs.setText("-")
-        bs.clicked.connect(lambda _, s=spin: self._nudge(s, -1))
-        ba = QToolButton()
-        ba.setText("+")
-        ba.clicked.connect(lambda _, s=spin: self._nudge(s, 1))
-        hl = QHBoxLayout()
-        hl.setSpacing(2)
-        hl.addWidget(bs)
-        hl.addWidget(ba)
-        layout.addLayout(hl, row, 2)
+    def _make_spin(self, label, tip, range_, default):
+        """创建 Fluent 风格的 SpinBox"""
+        spin = SpinBox()
+        spin.setRange(*range_)
+        spin.setValue(default)
+        spin.setFixedHeight(32)
         return spin
 
-    def _make_view_toggle(self, text, mode):
-        btn = PushButton(text)
-        btn.setCheckable(True)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.clicked.connect(lambda: self._switch_view(mode))
-        return btn
-
-    def _tb_btn(self, text, slot):
-        btn = PushButton(text)
-        btn.setFixedHeight(26)
-        btn.setStyleSheet(
-            "PushButton { background-color: #444; color: #ddd; border: none;"
-            " border-radius: 4px; padding: 2px 10px; font-size: 9pt; }"
-            " QPushButton:hover { background-color: #555; }"
-        )
+    def _add_tb_btn(self, layout, icon, tooltip, slot):
+        """添加工具栏按钮 (TransparentToolButton)"""
+        btn = TransparentToolButton(icon, self)
+        btn.setFixedSize(28, 28)
+        btn.setToolTip(tooltip)
         btn.clicked.connect(slot)
-        return btn
+        layout.addWidget(btn)
 
     # ── 场景刷新 ──
 
@@ -549,40 +572,13 @@ class CoordinatePickerDialog(QDialog):
 
     # ── 视图切换 ──
 
-    def _switch_view(self, mode):
-        if self._view_mode == mode:
+    def _switch_view(self, key):
+        if self._view_mode == key:
             return
-        self._view_mode = mode
-        self._update_view_btn_styles()
-        name = "侧视图 (X-Y)" if mode == "xy" else "俯视图 (X-Z)"
+        self._view_mode = key
+        name = "侧视图 (X-Y)" if key == "xy" else "俯视图 (X-Z)"
         self.status_view.setText(f"视图: {name}")
         self._refresh_scene()
-
-    def _update_view_btn_styles(self):
-        from qfluentwidgets import isDarkTheme
-
-        if isDarkTheme():
-            act_bg = "#0078d4"
-            act_fg = "white"
-            inact_bg = "#3a3a3a"
-            inact_fg = "#ccc"
-        else:
-            act_bg = "#0078d4"
-            act_fg = "white"
-            inact_bg = "#e0e0e0"
-            inact_fg = "#555"
-
-        act = (
-            f"QPushButton {{ background-color: {act_bg}; color: {act_fg}; border: none;"
-            " border-radius: 4px; padding: 6px 10px; font-size: 9pt; font-weight: bold; }"
-        )
-        inact = (
-            f"QPushButton {{ background-color: {inact_bg}; color: {inact_fg}; border: none;"
-            " border-radius: 4px; padding: 6px 10px; font-size: 9pt; }"
-            f" QPushButton:hover {{ background-color: {'#4a4a4a' if isDarkTheme() else '#d0d0d0'}; }}"
-        )
-        self.btn_xy.setStyleSheet(act if self._view_mode == "xy" else inact)
-        self.btn_xz.setStyleSheet(act if self._view_mode == "xz" else inact)
 
     # ── 坐标更新 ──
 
@@ -660,10 +656,6 @@ class CoordinatePickerDialog(QDialog):
             self.spin_z.blockSignals(False)
         self._update_status()
         self._on_coords_modified()
-
-    @staticmethod
-    def _nudge(spin, delta):
-        spin.setValue(spin.value() + delta)
 
     # ── 确认与关闭 ──
 

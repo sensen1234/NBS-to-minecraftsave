@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QHeaderView,
     QFrame,
     QTableWidgetItem,
+    QSizePolicy,
 )
 
 from qfluentwidgets import (
@@ -48,8 +49,6 @@ class GroupsInterface(ScrollArea):
         self._initToolbar()
         self._initTable()
 
-        self.vBoxLayout.addStretch(1)
-
     # ── 标题 ──
 
     def _initTitle(self):
@@ -82,6 +81,9 @@ class GroupsInterface(ScrollArea):
 
     def _initTable(self):
         self.tableCard = CardWidget(self.scrollWidget)
+        self.tableCard.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding
+        )
         cardLayout = QVBoxLayout(self.tableCard)
         cardLayout.setContentsMargins(0, 0, 0, 0)
 
@@ -104,16 +106,17 @@ class GroupsInterface(ScrollArea):
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.verticalHeader().setDefaultSectionSize(50)
+        self.table.verticalHeader().setDefaultSectionSize(42)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
         self.table.setFrameShape(QFrame.Shape.NoFrame)
         self.table.setSelectionBehavior(
             TableWidget.SelectionBehavior.SelectRows
         )
+        self.table.setMinimumHeight(300)
 
         cardLayout.addWidget(self.table)
-        self.vBoxLayout.addWidget(self.tableCard)
+        self.vBoxLayout.addWidget(self.tableCard, 1)
 
     # ── 公开接口 ──
 

@@ -26,6 +26,7 @@ from qfluentwidgets import (
     HyperlinkButton,
     FluentIcon,
     isDarkTheme,
+    ToolButton,
 )
 
 from PyQt6.QtWidgets import QTableWidgetItem, QHeaderView, QSizePolicy, QFrame
@@ -132,19 +133,36 @@ class WikiContentInterpreter:
         self.layout.addWidget(w)
 
     def add_code_block(self, language: str, content: str):
-        """添加代码块 (CardWidget + PlainTextEdit)"""
+        """添加代码块 (CardWidget + 语言标签 + 复制按钮 + PlainTextEdit)"""
+        from PyQt6.QtWidgets import QApplication
+
         card = CardWidget(self.parent)
         cl = QVBoxLayout(card)
         cl.setContentsMargins(0, 0, 0, 0)
         cl.setSpacing(0)
 
-        # 语言标签
+        # 顶部栏: 语言标签 + 复制按钮
+        header = QWidget(card)
+        headerLayout = QHBoxLayout(header)
+        headerLayout.setContentsMargins(8, 4, 8, 4)
+        headerLayout.setSpacing(4)
+
         if language:
-            langLabel = CaptionLabel(f"  {language}", card)
-            langLabel.setStyleSheet(
-                "font-size: 11px; color: #888; padding: 4px 8px;"
-            )
-            cl.addWidget(langLabel)
+            langLabel = CaptionLabel(language, header)
+            langLabel.setStyleSheet("font-size: 11px; color: #888;")
+            headerLayout.addWidget(langLabel)
+        else:
+            headerLayout.addStretch(1)
+
+        copyBtn = ToolButton(FluentIcon.COPY, header)
+        copyBtn.setFixedSize(28, 24)
+        copyBtn.setToolTip("复制代码")
+        code_content = content
+        copyBtn.clicked.connect(
+            lambda: QApplication.clipboard().setText(code_content)
+        )
+        headerLayout.addWidget(copyBtn)
+        cl.addWidget(header)
 
         te = PlainTextEdit(card)
         te.setPlainText(content)
