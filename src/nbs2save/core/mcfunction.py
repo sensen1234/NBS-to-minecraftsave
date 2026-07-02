@@ -39,7 +39,7 @@ class McFunctionOutputStrategy(OutputFormatStrategy):
         processor: GroupProcessor实例
         """
         self.commands = []
-        # 清空输出文件
+        # 清空输出文件（output_file 已由 GUI 移除了扩展名）
         output_file = processor.config["output_file"] + ".mcfunction"
         with open(output_file, "w", encoding="utf-8") as f:
             f.write("")  # 创建空文件或清空已有文件

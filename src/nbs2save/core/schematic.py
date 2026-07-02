@@ -149,9 +149,15 @@ class SchematicOutputStrategy(OutputFormatStrategy):
         参数:
         processor: GroupProcessor实例
         """
+        import os
         path = processor.config["output_file"]
-        # 保存到本地 .schem
-        self.schem.save(".", path.rsplit("/", 1)[-1], processor.config["data_version"])
+        # 分离目录和文件名，兼容 Windows 路径分隔符
+        dir_name = os.path.dirname(path) or "."
+        file_name = os.path.basename(path)
+        # 移除已有的 .schem 扩展名（mcschematic 会自动添加）
+        if file_name.endswith(".schem"):
+            file_name = file_name[:-6]
+        self.schem.save(dir_name, file_name, processor.config["data_version"])
 
     # ----------------------
     # 工具方法

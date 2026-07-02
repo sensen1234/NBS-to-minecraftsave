@@ -1,13 +1,16 @@
+"""
+坐标选择对话框 - Fluent Design 风格
+双视图（XY/XZ）、键盘微调、十字准星、拖拽定位
+"""
+
 from PyQt6.QtWidgets import (
     QDialog,
-    QPushButton,
     QGraphicsView,
     QGraphicsScene,
     QGraphicsRectItem,
     QGraphicsItem,
     QLabel,
     QSpinBox,
-    QGroupBox,
     QGridLayout,
     QHBoxLayout,
     QVBoxLayout,
@@ -19,7 +22,16 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QPointF, QPropertyAnimation, QEasingCurve, QRectF, QTimer
 from PyQt6.QtGui import QPen, QBrush, QColor, QPainter, QFont, QKeyEvent
 
-# 导入新写的动画工具
+from qfluentwidgets import (
+    PrimaryPushButton,
+    PushButton,
+    CardWidget,
+    SubtitleLabel,
+    BodyLabel,
+    CaptionLabel,
+    FluentIcon,
+)
+
 from .animations import AnimationUtils, GraphicsItemAnimWrapper
 
 
@@ -31,7 +43,7 @@ def get_color_by_id(group_id, is_active=False):
 
 
 class CrosshairItem(QGraphicsItem):
-    """十字准星 �C 指示当前精确位置"""
+    """十字准星 - 指示当前精确位置"""
 
     def __init__(self, size=24):
         super().__init__()
@@ -68,7 +80,9 @@ class CrosshairItem(QGraphicsItem):
 class TrackGroupItem(QGraphicsRectItem):
     """代表轨道组位置的图元"""
 
-    def __init__(self, x, y, group_id, is_active=True, on_move_callback=None, invert_y=True):
+    def __init__(
+        self, x, y, group_id, is_active=True, on_move_callback=None, invert_y=True
+    ):
         size = 12
         super().__init__(-size / 2, -size / 2, size, size)
 
@@ -94,7 +108,6 @@ class TrackGroupItem(QGraphicsRectItem):
             self.setCursor(Qt.CursorShape.OpenHandCursor)
             self.setZValue(100)
 
-            # --- 动画包装器 ---
             self.anim_wrapper = GraphicsItemAnimWrapper(self)
             self.pos_anim = QPropertyAnimation(self.anim_wrapper, b"pos")
             self.pos_anim.setDuration(300)
@@ -116,7 +129,6 @@ class TrackGroupItem(QGraphicsRectItem):
         self.text_item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
     def move_smoothly_to(self, x, y):
-        """平滑移动到指定位置（视图坐标）"""
         if self.anim_wrapper:
             if self.pos_anim.state() == QPropertyAnimation.State.Running:
                 self.pos_anim.stop()
@@ -174,7 +186,7 @@ class GridScene(QGraphicsScene):
         left = int(rect.left()) - (int(rect.left()) % self.grid_size)
         top = int(rect.top()) - (int(rect.top()) % self.grid_size)
 
-        # 绘制细网格
+        # 细网格
         lines = []
         for x in range(left, int(rect.right()), self.grid_size):
             lines.append(QPointF(x, rect.top()))
@@ -188,7 +200,7 @@ class GridScene(QGraphicsScene):
         painter.setPen(pen)
         painter.drawLines(lines)
 
-        # 绘制大网格 (每50格)
+        # 大网格 (每50格)
         big_grid_lines = []
         big_step = 50
         big_left = int(rect.left()) - (int(rect.left()) % big_step)
@@ -230,7 +242,7 @@ class GridScene(QGraphicsScene):
         big_top = int(rect.top()) - (int(rect.top()) % big_step)
         for y in range(big_top, int(rect.bottom()), big_step):
             if y != 0:
-                label = str(y)  # 视图垂直轴：Y向下或Z向下（负值）
+                label = str(y)
                 fm = painter.fontMetrics()
                 tw = fm.horizontalAdvance(label)
                 painter.drawText(QPointF(-tw - 4, y + 4), label)
@@ -275,14 +287,14 @@ class PickerGraphicsView(QGraphicsView):
 
 
 class CoordinatePickerDialog(QDialog):
-    """完善的坐标选择对话框 �C 双视图、键盘微调、十字准星"""
+    """坐标选择对话框 - Fluent Design 风格"""
 
     VIEW_XY = "xy"
     VIEW_XZ = "xz"
 
     def __init__(self, target_group_id, all_groups_data, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"轨道布局规划 - 正在编辑 ID: {target_group_id}")
+        self.setWindowTitle(f"轨道布局规划 - ID: {target_group_id}")
         self.resize(1120, 780)
 
         self.target_id = target_group_id
@@ -291,7 +303,7 @@ class CoordinatePickerDialog(QDialog):
         self._groups_items = {}
         self._target_item = None
         self._crosshair = None
-        self._confirmed = False  # 用户是否已确认过位置
+        self._confirmed = False
 
         target_data = self.all_groups.get(target_group_id, {})
         coords = target_data.get("base_coords", ("0", "64", "0"))
@@ -314,12 +326,11 @@ class CoordinatePickerDialog(QDialog):
         main.setSpacing(12)
 
         # ── 左侧控制面板 ──
-        ctrl = QGroupBox("坐标调整")
-        ctrl.setStyleSheet(
-            "QGroupBox { border: none; background-color: #f5f5f5; border-radius: 8px; padding: 14px; }"
-        )
-        cl = QGridLayout()
-        cl.setSpacing(8)
+        ctrl = CardWidget(self)
+        ctrl.setFixedWidth(280)
+        cl = QVBoxLayout(ctrl)
+        cl.setContentsMargins(16, 16, 16, 16)
+        cl.setSpacing(10)
 
         # 标题
         color_lbl = QLabel()
@@ -328,70 +339,59 @@ class CoordinatePickerDialog(QDialog):
         color_lbl.setStyleSheet(
             f"background-color: rgb({c.red()},{c.green()},{c.blue()}); border-radius: 3px;"
         )
-        tb = QHBoxLayout()
-        tt = QLabel(f"编辑 ID: {self.target_id}")
-        tt.setStyleSheet("font-weight: bold; font-size: 11pt; color: #333;")
-        tb.addWidget(color_lbl)
-        tb.addWidget(tt)
-        tb.addStretch()
-        cl.addLayout(tb, 0, 0, 1, 3)
-        cl.addWidget(self._sep(), 1, 0, 1, 3)
+        title_row = QHBoxLayout()
+        tt = SubtitleLabel(f"编辑 ID: {self.target_id}")
+        title_row.addWidget(color_lbl)
+        title_row.addWidget(tt)
+        title_row.addStretch()
+        cl.addLayout(title_row)
+        cl.addWidget(self._sep())
 
-        self.spin_x = self._add_coord(cl, 2, "X (左右):", (-30000000, 30000000), self.x)
-        self.spin_y = self._add_coord(cl, 3, "Y (高度):", (-64, 320), self.y)
-        self.spin_z = self._add_coord(cl, 4, "Z (深度):", (-30000000, 30000000), self.z)
+        # 坐标输入
+        coord_grid = QGridLayout()
+        coord_grid.setSpacing(8)
+        self.spin_x = self._add_coord(coord_grid, 0, "X (左右):", (-30000000, 30000000), self.x)
+        self.spin_y = self._add_coord(coord_grid, 1, "Y (高度):", (-64, 320), self.y)
+        self.spin_z = self._add_coord(coord_grid, 2, "Z (深度):", (-30000000, 30000000), self.z)
 
         self.spin_x.valueChanged.connect(self._on_spinbox_changed)
         self.spin_y.valueChanged.connect(self._on_spinbox_changed)
         self.spin_z.valueChanged.connect(self._on_z_changed)
 
-        cl.addWidget(self._sep(), 5, 0, 1, 3)
+        cl.addLayout(coord_grid)
+        cl.addWidget(self._sep())
 
+        # 视图切换
+        view_row = QHBoxLayout()
+        view_row.setSpacing(6)
         self.btn_xy = self._make_view_toggle("侧视图 (X-Y)", "xy")
         self.btn_xz = self._make_view_toggle("俯视图 (X-Z)", "xz")
         self.btn_xy.setChecked(True)
         self._update_view_btn_styles()
-        vb = QHBoxLayout()
-        vb.setSpacing(6)
-        vb.addWidget(self.btn_xy)
-        vb.addWidget(self.btn_xz)
-        cl.addLayout(vb, 6, 0, 1, 3)
+        view_row.addWidget(self.btn_xy)
+        view_row.addWidget(self.btn_xz)
+        cl.addLayout(view_row)
+        cl.addWidget(self._sep())
 
-        cl.addWidget(self._sep(), 7, 0, 1, 3)
-        btn_ok = QPushButton("确定位置")
-        btn_ok.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_ok.setMinimumHeight(38)
-        btn_ok.setStyleSheet(
-            "QPushButton { background-color: #0078d4; color: white; border-radius: 6px;"
-            " padding: 10px; font-weight: bold; font-size: 10pt; }"
-            " QPushButton:hover { background-color: #1084d0; }"
-            " QPushButton:pressed { background-color: #006abc; }"
-        )
-        btn_ok.clicked.connect(self._confirm_position)
-        self._btn_ok = btn_ok
-        cl.addWidget(btn_ok, 8, 0, 1, 3)
+        # 确定按钮
+        self._btn_ok = PrimaryPushButton("确定位置", self)
+        self._btn_ok.setFixedHeight(38)
+        self._btn_ok.clicked.connect(self._confirm_position)
+        cl.addWidget(self._btn_ok)
 
-        self._confirm_label = QLabel("")
-        self._confirm_label.setStyleSheet(
-            "color: #107c10; font-size: 9pt; font-weight: bold;"
-            " background: transparent; padding: 2px 0;"
-        )
+        self._confirm_label = CaptionLabel("")
+        self._confirm_label.setStyleSheet("color: #107c10; font-weight: bold;")
         self._confirm_label.setVisible(False)
-        cl.addWidget(self._confirm_label, 9, 0, 1, 3)
+        cl.addWidget(self._confirm_label)
 
-        btn_done = QPushButton("完成")
-        btn_done.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_done.setMinimumHeight(34)
-        btn_done.setStyleSheet(
-            "QPushButton { background-color: #e0e0e0; color: #333; border-radius: 6px;"
-            " padding: 8px; font-size: 9pt; }"
-            " QPushButton:hover { background-color: #d0d0d0; }"
-            " QPushButton:pressed { background-color: #c0c0c0; }"
-        )
+        # 完成按钮
+        btn_done = PushButton("完成", self)
+        btn_done.setFixedHeight(34)
         btn_done.clicked.connect(self._try_close)
-        cl.addWidget(btn_done, 10, 0, 1, 3)
+        cl.addWidget(btn_done)
 
-        info = QLabel(
+        # 操作提示
+        info = CaptionLabel(
             "操作提示:\n"
             "\u2022 拖动方块或修改数值调整坐标\n"
             "\u2022 滚轮缩放 | 右键拖动平移\n"
@@ -399,14 +399,10 @@ class CoordinatePickerDialog(QDialog):
             "\u2022 R键重置视图 | +/-缩放"
         )
         info.setWordWrap(True)
-        info.setStyleSheet(
-            "color: #888; margin-top: 10px; font-size: 8pt;"
-            " line-height: 1.4; background: transparent;"
-        )
-        cl.addWidget(info, 11, 0, 1, 3)
-        cl.setRowStretch(12, 1)
-        ctrl.setLayout(cl)
-        ctrl.setFixedWidth(275)
+        info.setStyleSheet("color: #888; margin-top: 10px; line-height: 1.4;")
+        cl.addWidget(info)
+        cl.addStretch(1)
+
         main.addWidget(ctrl)
 
         # ── 右侧视图区域 ──
@@ -446,24 +442,20 @@ class CoordinatePickerDialog(QDialog):
 
         # ── 底部状态栏 ──
         sb = QWidget()
-        sb.setStyleSheet(
-            "background-color: #f0f0f0; border-top: 1px solid #ddd;"
-        )
+        sb.setStyleSheet("background-color: #f0f0f0; border-top: 1px solid #ddd;")
         sl = QHBoxLayout(sb)
         sl.setContentsMargins(20, 6, 20, 6)
-        self.status_coord = QLabel(
+        self.status_coord = CaptionLabel(
             f"X: {self.x}  |  Y: {self.y}  |  Z: {self.z}"
         )
         self.status_coord.setStyleSheet(
             "font-family: 'Consolas', monospace; font-size: 10pt;"
-            " color: #444; font-weight: 600; background: transparent;"
+            " color: #444; font-weight: 600;"
         )
         sl.addWidget(self.status_coord)
         sl.addStretch()
-        self.status_view = QLabel("视图: 侧视图 (X-Y)")
-        self.status_view.setStyleSheet(
-            "font-size: 9pt; color: #888; background: transparent;"
-        )
+        self.status_view = CaptionLabel("视图: 侧视图 (X-Y)")
+        self.status_view.setStyleSheet("color: #888;")
         sl.addWidget(self.status_view)
         outer.addWidget(sb)
 
@@ -477,33 +469,36 @@ class CoordinatePickerDialog(QDialog):
         return s
 
     def _add_coord(self, layout, row, label, sr, dv):
-        layout.addWidget(QLabel(label), row, 0)
+        layout.addWidget(BodyLabel(label), row, 0)
         spin = QSpinBox()
         spin.setRange(*sr)
         spin.setValue(dv)
         layout.addWidget(spin, row, 1)
-        bs = QToolButton(); bs.setText("-")
+        bs = QToolButton()
+        bs.setText("-")
         bs.clicked.connect(lambda _, s=spin: self._nudge(s, -1))
-        ba = QToolButton(); ba.setText("+")
+        ba = QToolButton()
+        ba.setText("+")
         ba.clicked.connect(lambda _, s=spin: self._nudge(s, 1))
-        hl = QHBoxLayout(); hl.setSpacing(2)
-        hl.addWidget(bs); hl.addWidget(ba)
+        hl = QHBoxLayout()
+        hl.setSpacing(2)
+        hl.addWidget(bs)
+        hl.addWidget(ba)
         layout.addLayout(hl, row, 2)
         return spin
 
     def _make_view_toggle(self, text, mode):
-        btn = QPushButton(text)
+        btn = PushButton(text)
         btn.setCheckable(True)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(lambda: self._switch_view(mode))
         return btn
 
     def _tb_btn(self, text, slot):
-        btn = QPushButton(text)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn = PushButton(text)
         btn.setFixedHeight(26)
         btn.setStyleSheet(
-            "QPushButton { background-color: #444; color: #ddd; border: none;"
+            "PushButton { background-color: #444; color: #ddd; border: none;"
             " border-radius: 4px; padding: 2px 10px; font-size: 9pt; }"
             " QPushButton:hover { background-color: #555; }"
         )
@@ -527,13 +522,19 @@ class CoordinatePickerDialog(QDialog):
             vy = -float(gy if is_xy else gz)
 
             if g_id != self.target_id:
-                item = TrackGroupItem(vx, vy, g_id, is_active=False, invert_y=False)
+                item = TrackGroupItem(
+                    vx, vy, g_id, is_active=False, invert_y=False
+                )
                 self.scene.addItem(item)
                 self._groups_items[g_id] = item
             else:
                 self._target_item = TrackGroupItem(
-                    vx, vy, self.target_id, is_active=True,
-                    on_move_callback=self._on_point_dragged, invert_y=False
+                    vx,
+                    vy,
+                    self.target_id,
+                    is_active=True,
+                    on_move_callback=self._on_point_dragged,
+                    invert_y=False,
                 )
                 self.scene.addItem(self._target_item)
                 self._groups_items[g_id] = self._target_item
@@ -558,14 +559,27 @@ class CoordinatePickerDialog(QDialog):
         self._refresh_scene()
 
     def _update_view_btn_styles(self):
+        from qfluentwidgets import isDarkTheme
+
+        if isDarkTheme():
+            act_bg = "#0078d4"
+            act_fg = "white"
+            inact_bg = "#3a3a3a"
+            inact_fg = "#ccc"
+        else:
+            act_bg = "#0078d4"
+            act_fg = "white"
+            inact_bg = "#e0e0e0"
+            inact_fg = "#555"
+
         act = (
-            "QPushButton { background-color: #0078d4; color: white; border: none;"
+            f"QPushButton {{ background-color: {act_bg}; color: {act_fg}; border: none;"
             " border-radius: 4px; padding: 6px 10px; font-size: 9pt; font-weight: bold; }"
         )
         inact = (
-            "QPushButton { background-color: #e0e0e0; color: #555; border: none;"
+            f"QPushButton {{ background-color: {inact_bg}; color: {inact_fg}; border: none;"
             " border-radius: 4px; padding: 6px 10px; font-size: 9pt; }"
-            " QPushButton:hover { background-color: #d0d0d0; }"
+            f" QPushButton:hover {{ background-color: {'#4a4a4a' if isDarkTheme() else '#d0d0d0'}; }}"
         )
         self.btn_xy.setStyleSheet(act if self._view_mode == "xy" else inact)
         self.btn_xz.setStyleSheet(act if self._view_mode == "xz" else inact)
@@ -573,15 +587,8 @@ class CoordinatePickerDialog(QDialog):
     # ── 坐标更新 ──
 
     def _on_coords_modified(self):
-        """坐标被修改时重置确认状态"""
         if self._confirmed:
             self._confirmed = False
-            self._btn_ok.setStyleSheet(
-                "QPushButton { background-color: #0078d4; color: white; border-radius: 6px;"
-                " padding: 10px; font-weight: bold; font-size: 10pt; }"
-                " QPushButton:hover { background-color: #1084d0; }"
-                " QPushButton:pressed { background-color: #006abc; }"
-            )
             self._btn_ok.setText("确定位置")
             self._confirm_label.setVisible(False)
 
@@ -661,31 +668,22 @@ class CoordinatePickerDialog(QDialog):
     # ── 确认与关闭 ──
 
     def _confirm_position(self):
-        """保存当前坐标但不关闭对话框"""
         self._confirmed = True
-        self._confirm_label.setText("✓ 位置已保存，可切换视角查看")
+        self._confirm_label.setText("\u2713 位置已保存，可切换视角查看")
         self._confirm_label.setVisible(True)
-        # 按钮视觉反馈
-        self._btn_ok.setStyleSheet(
-            "QPushButton { background-color: #107c10; color: white; border-radius: 6px;"
-            " padding: 10px; font-weight: bold; font-size: 10pt; }"
-        )
-        self._btn_ok.setText("✓ 已保存")
+        self._btn_ok.setText("\u2713 已保存")
 
     def _try_close(self):
-        """尝试关闭对话框：若已确认则保存并关闭"""
         if self._confirmed:
             self.accept()
         else:
-            self._confirm_label.setText("⚠ 请先点击「确定位置」保存坐标")
+            self._confirm_label.setText("\u26a0 请先点击「确定位置」保存坐标")
             self._confirm_label.setStyleSheet(
-                "color: #d83b01; font-size: 9pt; font-weight: bold;"
-                " background: transparent; padding: 2px 0;"
+                "color: #d83b01; font-weight: bold;"
             )
             self._confirm_label.setVisible(True)
 
     def reject(self):
-        """ESC 或点击 X 关闭时的处理"""
         if self._confirmed:
             self.accept()
         else:
