@@ -610,6 +610,10 @@ class CoordinatePickerDialog(QDialog):
         else:
             self.view.centerOn(QPointF(0, 0))
 
+        # centerOn 使用 bitblt 滚动视口, 不会重绘已移位的像素(含轴向标签)。
+        # 显式 update() 标记整个场景为脏, 强制 drawForeground 用最新标签重绘。
+        self.scene.update()
+
     # ── 视图切换 ──
 
     def _switch_view(self, key):
