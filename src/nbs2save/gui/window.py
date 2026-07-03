@@ -95,6 +95,7 @@ class MainWindow(MSFluentWindow):
                     "cover": "minecraft:iron_block",
                 },
                 "generation_mode": "default",
+                "offset_mode": "pan",
             }
         }
 

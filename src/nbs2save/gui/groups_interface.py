@@ -23,9 +23,24 @@ from qfluentwidgets import (
     FluentIcon,
     InfoBar,
     InfoBarPosition,
+    ComboBox,
 )
 
 from .coordinate_picker import CoordinatePickerDialog
+
+
+# 生成模式选项: (显示文本, 配置值) — 决定结构生成方式
+_GEN_MODE_ITEMS = [
+    ("默认", "default"),
+    ("阶梯", "staircase"),
+    ("阶梯(上行)", "staircase_up"),
+]
+
+# 偏移模式选项: (显示文本, 配置值) — 决定音符Z轴偏移量计算方式，与生成模式独立
+_OFFSET_MODE_ITEMS = [
+    ("pan值偏移", "pan"),
+    ("音量偏移", "volume"),
+]
 
 
 class GroupsInterface(ScrollArea):
@@ -88,7 +103,7 @@ class GroupsInterface(ScrollArea):
         cardLayout.setContentsMargins(0, 0, 0, 0)
 
         self.table = TableWidget(self.tableCard)
-        self.table.setColumnCount(9)
+        self.table.setColumnCount(10)
         self.table.setHorizontalHeaderLabels(
             [
                 "ID",
@@ -100,6 +115,7 @@ class GroupsInterface(ScrollArea):
                 "基础方块",
                 "覆盖方块",
                 "生成模式",
+                "偏移模式",
             ]
         )
 
@@ -154,9 +170,25 @@ class GroupsInterface(ScrollArea):
             self.table.setItem(
                 r, 7, QTableWidgetItem(cfg["block"].get("cover", ""))
             )
-            self.table.setItem(
-                r, 8, QTableWidgetItem(cfg.get("generation_mode", "default"))
-            )
+            # 生成模式: 下拉框选择
+            combo = ComboBox(self.table)
+            combo.addItems([label for label, _ in _GEN_MODE_ITEMS])
+            cur_mode = cfg.get("generation_mode", "default")
+            for idx, (_, val) in enumerate(_GEN_MODE_ITEMS):
+                if val == cur_mode:
+                    combo.setCurrentIndex(idx)
+                    break
+            self.table.setCellWidget(r, 8, combo)
+
+            # 偏移模式: 下拉框选择
+            off_combo = ComboBox(self.table)
+            off_combo.addItems([label for label, _ in _OFFSET_MODE_ITEMS])
+            cur_off = cfg.get("offset_mode", "pan")
+            for idx, (_, val) in enumerate(_OFFSET_MODE_ITEMS):
+                if val == cur_off:
+                    off_combo.setCurrentIndex(idx)
+                    break
+            self.table.setCellWidget(r, 9, off_combo)
 
     def saveTableToConfig(self):
         """将表格内容写回主窗口的 group_config"""
@@ -186,13 +218,36 @@ class GroupsInterface(ScrollArea):
             )
             mode = "default"
             if self.table.columnCount() >= 9:
-                mode = self.table.item(r, 8).text().strip() or "default"
+                combo = self.table.cellWidget(r, 8)
+                if isinstance(combo, ComboBox):
+                    idx = combo.currentIndex()
+                    mode = (
+                        _GEN_MODE_ITEMS[idx][1]
+                        if 0 <= idx < len(_GEN_MODE_ITEMS)
+                        else "default"
+                    )
+                elif self.table.item(r, 8) is not None:
+                    # 兼容旧式 QTableWidgetItem
+                    mode = self.table.item(r, 8).text().strip() or "default"
+
+            # 偏移模式
+            offset_mode = "pan"
+            if self.table.columnCount() >= 10:
+                off_combo = self.table.cellWidget(r, 9)
+                if isinstance(off_combo, ComboBox):
+                    idx = off_combo.currentIndex()
+                    offset_mode = (
+                        _OFFSET_MODE_ITEMS[idx][1]
+                        if 0 <= idx < len(_OFFSET_MODE_ITEMS)
+                        else "pan"
+                    )
 
             new_config[gid] = {
                 "base_coords": (x, y, z),
                 "layers": layers,
                 "block": {"base": b_base, "cover": b_cover},
                 "generation_mode": mode,
+                "offset_mode": offset_mode,
             }
         self._main_window.group_config = new_config
 
@@ -209,6 +264,7 @@ class GroupsInterface(ScrollArea):
                 "cover": "minecraft:iron_block",
             },
             "generation_mode": "default",
+            "offset_mode": "pan",
         }
         self.refreshTable()
 
@@ -216,8 +272,8 @@ class GroupsInterface(ScrollArea):
         """删除选中分组"""
         if not self._main_window:
             return
-        gc = self._main_window.group_config
-        if len(gc) <= 1:
+        # 先检查数量（用当前表格行数，避免 saveTableToConfig 重赋值后引用失效）
+        if self.table.rowCount() <= 1:
             InfoBar.warning(
                 title="提示",
                 content="至少保留一个轨道组",
@@ -228,12 +284,15 @@ class GroupsInterface(ScrollArea):
                 parent=self,
             )
             return
-        self.saveTableToConfig()
         curr = self.table.currentRow()
-        if curr >= 0:
-            gid = list(gc.keys())[curr]
-            del gc[gid]
-            self.refreshTable()
+        if curr < 0:
+            return
+        # 先保存当前表格到 config，再重新获取引用（saveTableToConfig 会重赋值 group_config）
+        self.saveTableToConfig()
+        gc = self._main_window.group_config
+        gid = list(gc.keys())[curr]
+        del gc[gid]
+        self.refreshTable()
 
     def _openCoordinatePicker(self, row):
         self.saveTableToConfig()

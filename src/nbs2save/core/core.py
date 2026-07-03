@@ -246,8 +246,12 @@ class GroupProcessor(ABC):
             self.generation_mode = config.get(
                 "generation_mode", "default"
             )  # 获取生成模式
+            self.offset_mode = config.get(
+                "offset_mode", "pan"
+            )  # 获取偏移计算模式
             self.layers = set(config["layers"])
             self.tick_status = defaultdict(lambda: {"left": False, "right": False})
+            self._warned_zero_panning = False  # 音量偏移模式 WARN 去重标志
 
             # 根据生成模式选择策略
             group_strategy = self._pick_strategy_for_group(self.generation_mode)
@@ -289,7 +293,32 @@ class GroupProcessor(ABC):
         return int(round(note.panning / 10))
 
     @staticmethod
-    def _get_max_pan(notes: List[Note], tick: int, direction: int) -> int:
+    def _calculate_pan_from_volume(note: Note) -> int:
+        """
+        音量生成模式: 偏移量级来自音量(经 volume_to_distance 拟合换算为格数),
+        方向来自 note.panning 正负。panning==0 时不偏移。
+
+        - 正数向右，负数向左，0 表示中央
+        """
+        if note.panning == 0:
+            return 0
+        from ..gui.utilities_interface import volume_to_distance  # 延迟 import 避免循环依赖
+
+        distance = volume_to_distance(getattr(note, "velocity", 100))
+        magnitude = int(round(distance))
+        return magnitude if note.panning > 0 else -magnitude
+
+    def _calculate_offset(self, note: Note) -> int:
+        """
+        根据当前组的 offset_mode 选择偏移计算方式（与 generation_mode 独立）。
+        - "volume": 音量偏移（量级来自音量，方向来自 panning）
+        - "pan" / 其他: pan值偏移（panning/10）
+        """
+        if self.offset_mode == "volume":
+            return self._calculate_pan_from_volume(note)
+        return self._calculate_pan(note)
+
+    def _get_max_pan(self, notes: List[Note], tick: int, direction: int) -> int:
         """
         在指定 tick 内，找出给定方向（1=右，-1=左）的最大绝对偏移值。
         用于决定声像平台长度。
@@ -305,7 +334,7 @@ class GroupProcessor(ABC):
         max_pan = 0
         for note in notes:
             if note.tick == tick:
-                pan = GroupProcessor._calculate_pan(note)
+                pan = self._calculate_offset(note)
                 # 检查音符方向是否与指定方向一致
                 if pan * direction > 0:
                     max_pan = max(max_pan, abs(pan))
@@ -326,7 +355,7 @@ class GroupProcessor(ABC):
         (x, y, z) 三元组，表示音符在Minecraft世界中的坐标
         """
         tick_x = self.base_x + note.tick * 2
-        pan_offset = self._calculate_pan(note)
+        pan_offset = self._calculate_offset(note)
         z_pos = self.base_z + pan_offset
         return tick_x, self.base_y, z_pos
 
@@ -405,10 +434,21 @@ class GroupProcessor(ABC):
                 active_notes.append(self.notes[note_index])
                 note_index += 1
 
+            # 音量偏移模式: panning==0 的音符不偏移，每组仅 WARN 一次
+            if self.offset_mode == "volume" and not self._warned_zero_panning:
+                for note in active_notes:
+                    if note.panning == 0:
+                        self.log(
+                            "[WARN] 音量偏移模式: 检测到 panning=0 的音符，"
+                            "该音符不进行偏移(放置于主干道)。"
+                        )
+                        self._warned_zero_panning = True
+                        break
+
             # 4. 检测坐标冲突：同一 tick 同一 z 不允许重复
             occupied_positions = set()
             for note in active_notes:
-                pan = self._calculate_pan(note)
+                pan = self._calculate_offset(note)
                 z_pos = self.base_z + pan
                 position = (current_tick, z_pos)
                 if position in occupied_positions:
@@ -421,7 +461,7 @@ class GroupProcessor(ABC):
             # 5. 生成声像平台（左优先）
             pan_directions = set()
             for note in active_notes:
-                pan = self._calculate_pan(note)
+                pan = self._calculate_offset(note)
                 if pan != 0:
                     pan_directions.add(1 if pan > 0 else -1)
 

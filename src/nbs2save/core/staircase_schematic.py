@@ -159,7 +159,7 @@ class StaircaseSchematicOutputStrategy(OutputFormatStrategy):
         """
         # 计算音符的位置坐标
         tick_x, base_y, z_pos = processor.get_note_position(note)
-        pan_offset = processor._calculate_pan(note)
+        pan_offset = processor._calculate_offset(note)
 
         # 获取当前tick、当前方向上的最大偏移量
         direction = 1 if pan_offset > 0 else -1 if pan_offset < 0 else 0
@@ -325,7 +325,7 @@ class StaircaseUpSchematicOutputStrategy(OutputFormatStrategy):
             - 音符盒 = 音符盒基座 + 1 = base_y + distance - 2
         """
         tick_x, base_y, z_pos = processor.get_note_position(note)
-        pan_offset = processor._calculate_pan(note)
+        pan_offset = processor._calculate_offset(note)
         distance = abs(pan_offset)
 
         if distance == 0:

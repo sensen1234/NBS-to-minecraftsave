@@ -193,10 +193,12 @@ class TrackGroupItem(QGraphicsRectItem):
 class GridScene(QGraphicsScene):
     """带网格背景和坐标标注的场景"""
 
-    def __init__(self, parent=None, show_labels=True, v_axis_label="Y"):
+    def __init__(self, parent=None, show_labels=True,
+                 h_axis_label="X", v_axis_label="Y"):
         super().__init__(parent)
         self.grid_size = 10
         self._show_labels = show_labels
+        self.h_axis_label = h_axis_label
         self.v_axis_label = v_axis_label
         self._dark = isDarkTheme()
         self.update_theme()
@@ -210,6 +212,8 @@ class GridScene(QGraphicsScene):
             self._axis_x = QColor(100, 255, 100, 100)
             self._axis_y = QColor(100, 100, 255, 100)
             self._label_color = QColor(100, 100, 100)
+            self._axis_label_color_x = QColor(100, 255, 100, 180)
+            self._axis_label_color_y = QColor(100, 100, 255, 180)
         else:
             self._bg = QColor(245, 245, 245)
             self._grid_minor = QColor(220, 220, 220)
@@ -217,6 +221,8 @@ class GridScene(QGraphicsScene):
             self._axis_x = QColor(80, 200, 80, 120)
             self._axis_y = QColor(80, 80, 200, 120)
             self._label_color = QColor(120, 120, 120)
+            self._axis_label_color_x = QColor(50, 160, 50, 200)
+            self._axis_label_color_y = QColor(50, 50, 180, 200)
         self.setBackgroundBrush(QBrush(self._bg))
 
     def drawBackground(self, painter, rect):
@@ -267,6 +273,8 @@ class GridScene(QGraphicsScene):
         super().drawForeground(painter, rect)
         if not self._show_labels:
             return
+
+        # 数值坐标标注
         painter.setPen(QPen(self._label_color, 1))
         font = QFont("Consolas", 7)
         painter.setFont(font)
@@ -285,6 +293,30 @@ class GridScene(QGraphicsScene):
                 fm = painter.fontMetrics()
                 tw = fm.horizontalAdvance(label)
                 painter.drawText(QPointF(-tw - 4, y + 4), label)
+
+        # 轴向方向标注 (在轴末端)
+        label_font = QFont("Segoe UI", 8)
+        label_font.setBold(True)
+        painter.setFont(label_font)
+
+        # 水平轴: 标注在视口右边缘
+        painter.setPen(QPen(self._axis_label_color_x, 1))
+        if self.h_axis_label == "X":
+            h_label = "X (\u2192\u4e1c)"   # →东
+        else:
+            h_label = "Z (\u2192\u5357)"   # →南
+        painter.drawText(
+            QPointF(rect.right() - 30, -6),
+            h_label,
+        )
+
+        # 垂直轴: 标注在视口上边缘
+        painter.setPen(QPen(self._axis_label_color_y, 1))
+        v_label = f"{self.v_axis_label} (\u2191\u4e0a)"  # ↑上
+        painter.drawText(
+            QPointF(6, rect.top() + 12),
+            v_label,
+        )
 
 
 class PickerGraphicsView(QGraphicsView):
@@ -331,8 +363,8 @@ class PickerGraphicsView(QGraphicsView):
 class CoordinatePickerDialog(QDialog):
     """坐标选择对话框 - QFluentWidgets 原生组件"""
 
-    VIEW_XY = "xy"
-    VIEW_XZ = "xz"
+    VIEW_SOUTH = "south"   # 从南向北看: 水平=X(东), 垂直=Y(上)
+    VIEW_WEST = "west"     # 从西向东看: 水平=Z(南), 垂直=Y(上)
 
     def __init__(self, target_group_id, all_groups_data, parent=None):
         super().__init__(parent)
@@ -341,7 +373,7 @@ class CoordinatePickerDialog(QDialog):
 
         self.target_id = target_group_id
         self.all_groups = all_groups_data
-        self._view_mode = "xy"
+        self._view_mode = "west"
         self._groups_items = {}
         self._target_item = None
         self._crosshair = None
@@ -401,9 +433,9 @@ class CoordinatePickerDialog(QDialog):
         self.spin_z = self._make_spin("Z", "深度", (-30000000, 30000000), self.z)
 
         for row, (spin, label, tip) in enumerate([
-            (self.spin_x, "X", "左右"),
-            (self.spin_y, "Y", "高度"),
-            (self.spin_z, "Z", "深度"),
+            (self.spin_x, "X", "东西 (东+)"),
+            (self.spin_y, "Y", "高度 (上+)"),
+            (self.spin_z, "Z", "南北 (南+)"),
         ]):
             lbl = BodyLabel(f"{label} ({tip})")
             lbl.setStyleSheet("font-size: 12px;")
@@ -418,9 +450,9 @@ class CoordinatePickerDialog(QDialog):
 
         # 视图切换 (SegmentedWidget)
         self.segWidget = SegmentedWidget(self)
-        self.segWidget.addItem("xy", "侧视图 (X-Y)")
-        self.segWidget.addItem("xz", "俯视图 (X-Z)")
-        self.segWidget.setCurrentItem("xy")
+        self.segWidget.addItem("south", "南视图 (X-Y)")
+        self.segWidget.addItem("west", "西视图 (Z-Y)")
+        self.segWidget.setCurrentItem("west")
         self.segWidget.currentItemChanged.connect(self._switch_view)
         cl.addWidget(self.segWidget)
 
@@ -443,10 +475,10 @@ class CoordinatePickerDialog(QDialog):
 
         # 操作提示
         info = CaptionLabel(
+            "南视图: X(东)-Y(高) | 西视图: Z(南)-Y(高)\n"
             "拖动方块或修改数值调整坐标\n"
             "滚轮缩放 | 右键拖动平移\n"
-            "方向键微调 | Shift+方向键(\u00b110)\n"
-            "R 重置视图 | +/- 缩放"
+            "方向键微调 | Shift+\u00b110 | R 重置"
         )
         info.setWordWrap(True)
         info.setStyleSheet("color: #888; margin-top: 8px; line-height: 1.5;")
@@ -477,7 +509,7 @@ class CoordinatePickerDialog(QDialog):
         vl.addWidget(tbw)
 
         # 图形视图
-        self.scene = GridScene()
+        self.scene = GridScene(h_axis_label="Z", v_axis_label="Y")
         self.view = PickerGraphicsView(self.scene)
         self.view.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
@@ -505,7 +537,7 @@ class CoordinatePickerDialog(QDialog):
         )
         sl.addWidget(self.status_coord)
         sl.addStretch()
-        self.status_view = CaptionLabel("视图: 侧视图 (X-Y)")
+        self.status_view = CaptionLabel("视图: 西视图 (Z-Y)")
         self.status_view.setStyleSheet("color: #888;")
         sl.addWidget(self.status_view)
         outer.addWidget(sb)
@@ -533,16 +565,24 @@ class CoordinatePickerDialog(QDialog):
     def _refresh_scene(self):
         self.scene.clear()
         self._groups_items = {}
-        is_xy = self._view_mode == "xy"
+        is_south = self._view_mode == "south"
 
         for g_id, data in self.all_groups.items():
-            coords = data.get("base_coords", ("0", "0", "0"))
-            try:
-                gx, gy, gz = int(coords[0]), int(coords[1]), int(coords[2])
-            except Exception:
-                gx, gy, gz = 0, 64, 0
-            vx = float(gx)
-            vy = -float(gy if is_xy else gz)
+            # 目标组从 SpinBox 读取 (用户可能已编辑)
+            if g_id == self.target_id:
+                gx = self.spin_x.value()
+                gy = self.spin_y.value()
+                gz = self.spin_z.value()
+            else:
+                coords = data.get("base_coords", ("0", "0", "0"))
+                try:
+                    gx, gy, gz = int(coords[0]), int(coords[1]), int(coords[2])
+                except Exception:
+                    gx, gy, gz = 0, 64, 0
+
+            # 南视图: 水平=X, 垂直=-Y | 西视图: 水平=Z, 垂直=-Y
+            vx = float(gx if is_south else gz)
+            vy = -float(gy)
 
             if g_id != self.target_id:
                 item = TrackGroupItem(
@@ -576,8 +616,11 @@ class CoordinatePickerDialog(QDialog):
         if self._view_mode == key:
             return
         self._view_mode = key
-        name = "侧视图 (X-Y)" if key == "xy" else "俯视图 (X-Z)"
+        is_south = key == "south"
+        name = "南视图 (X-Y)" if is_south else "西视图 (Z-Y)"
         self.status_view.setText(f"视图: {name}")
+        self.scene.h_axis_label = "X" if is_south else "Z"
+        self.scene.v_axis_label = "Y"
         self._refresh_scene()
 
     # ── 坐标更新 ──
@@ -589,34 +632,45 @@ class CoordinatePickerDialog(QDialog):
             self._confirm_label.setVisible(False)
 
     def _on_point_dragged(self, view_x, view_y):
-        mc_x = int(view_x)
+        mc_h = int(view_x)
         mc_v = int(-view_y)
-        self.spin_x.blockSignals(True)
-        self.spin_x.setValue(mc_x)
-        self.spin_x.blockSignals(False)
-        if self._view_mode == "xy":
+        if self._view_mode == "south":
+            # 南视图: 水平=X, 垂直=Y
+            self.spin_x.blockSignals(True)
+            self.spin_x.setValue(mc_h)
+            self.spin_x.blockSignals(False)
             self.spin_y.blockSignals(True)
             self.spin_y.setValue(mc_v)
             self.spin_y.blockSignals(False)
         else:
+            # 西视图: 水平=Z, 垂直=Y
             self.spin_z.blockSignals(True)
-            self.spin_z.setValue(mc_v)
+            self.spin_z.setValue(mc_h)
             self.spin_z.blockSignals(False)
+            self.spin_y.blockSignals(True)
+            self.spin_y.setValue(mc_v)
+            self.spin_y.blockSignals(False)
         self._sync_crosshair()
         self._update_status()
         self._on_coords_modified()
 
     def _on_spinbox_changed(self):
-        x = self.spin_x.value()
-        v = self.spin_y.value() if self._view_mode == "xy" else self.spin_z.value()
+        if self._view_mode == "south":
+            # 南视图: 水平=X, 垂直=Y
+            h = self.spin_x.value()
+            v = self.spin_y.value()
+        else:
+            # 西视图: 水平=Z, 垂直=Y
+            h = self.spin_z.value()
+            v = self.spin_y.value()
         if self._target_item:
-            self._target_item.move_smoothly_to(float(x), -float(v))
+            self._target_item.move_smoothly_to(float(h), -float(v))
         self._sync_crosshair()
         self._update_status()
         self._on_coords_modified()
 
     def _on_z_changed(self):
-        if self._view_mode == "xz":
+        if self._view_mode == "west":
             self._on_spinbox_changed()
         self._update_status()
 
@@ -642,18 +696,23 @@ class CoordinatePickerDialog(QDialog):
         nx, ny = cur.x() + dx, cur.y() + dy
         self._target_item.move_smoothly_to(nx, ny)
         self._sync_crosshair()
-        mc_x, mc_v = int(nx), int(-ny)
-        self.spin_x.blockSignals(True)
-        self.spin_x.setValue(mc_x)
-        self.spin_x.blockSignals(False)
-        if self._view_mode == "xy":
+        mc_h, mc_v = int(nx), int(-ny)
+        if self._view_mode == "south":
+            # 南视图: 水平=X, 垂直=Y
+            self.spin_x.blockSignals(True)
+            self.spin_x.setValue(mc_h)
+            self.spin_x.blockSignals(False)
             self.spin_y.blockSignals(True)
             self.spin_y.setValue(mc_v)
             self.spin_y.blockSignals(False)
         else:
+            # 西视图: 水平=Z, 垂直=Y
             self.spin_z.blockSignals(True)
-            self.spin_z.setValue(mc_v)
+            self.spin_z.setValue(mc_h)
             self.spin_z.blockSignals(False)
+            self.spin_y.blockSignals(True)
+            self.spin_y.setValue(mc_v)
+            self.spin_y.blockSignals(False)
         self._update_status()
         self._on_coords_modified()
 

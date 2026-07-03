@@ -58,11 +58,17 @@ GROUP_CONFIG = {
             # 用于覆盖在基础平台上方的方块，通常是红石相关结构
             "cover": "minecraft:iron_block",
         },
-        # generation_mode: 生成模式
+        # generation_mode: 生成模式（决定结构生成方式）
         # 可选值:
-        #   'default'       -> 默认生成模式（当前schematic.py的实现）
+        #   'default'       -> 默认生成模式
         #   'staircase'     -> 阶梯向下生成模式（偏移>=3时启用阶梯效果）
         #   'staircase_up'  -> 阶梯向上生成模式（偏移>=3时启用阶梯效果）
         "generation_mode": "default",
+        # offset_mode: 偏移计算模式（决定音符Z轴偏移量的计算方式，与 generation_mode 独立）
+        # 可选值:
+        #   'pan'     -> pan值偏移: offset = panning / 10
+        #   'volume'  -> 音量偏移: 量级来自音量经 volume_to_distance 拟合换算为格数,
+        #               方向来自 panning 正负; panning==0 时不偏移并 WARN
+        "offset_mode": "pan",
     },
 }
