@@ -2,7 +2,8 @@
 运行日志界面
 """
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
+from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QApplication
 
 from qfluentwidgets import (
     CardWidget,
@@ -10,7 +11,9 @@ from qfluentwidgets import (
     PlainTextEdit,
     PushButton,
     FluentIcon,
+    isDarkTheme, qconfig,
 )
+from .studio_style import PageHeader
 
 
 class LogInterface(QWidget):
@@ -28,10 +31,15 @@ class LogInterface(QWidget):
         headerLayout = QHBoxLayout()
         headerLayout.setContentsMargins(0, 0, 0, 0)
 
-        self.titleLabel = SubtitleLabel("运行日志", self)
-        self.titleLabel.setStyleSheet("font-size: 20px; font-weight: 600;")
-        headerLayout.addWidget(self.titleLabel)
+        header = PageHeader("运行记录", "查看转换进度，复制日志以便排查问题。", "ACTIVITY", self)
+        self.titleLabel = header.titleLabel
+        headerLayout.addWidget(header)
         headerLayout.addStretch(1)
+
+        self.copyBtn = PushButton("复制日志", self)
+        self.copyBtn.setIcon(FluentIcon.COPY)
+        self.copyBtn.clicked.connect(lambda: QApplication.clipboard().setText(self.logText.toPlainText()))
+        headerLayout.addWidget(self.copyBtn)
 
         self.clearBtn = PushButton("清空", self)
         self.clearBtn.setIcon(FluentIcon.DELETE)
@@ -50,6 +58,14 @@ class LogInterface(QWidget):
         self.logText = PlainTextEdit(self.logCard)
         self.logText.setReadOnly(True)
         self.logText.setPlaceholderText("日志输出将在此显示...")
+        self._applyTheme()
+        qconfig.themeChanged.connect(self._applyTheme)
+
+        cardLayout.addWidget(self.logText)
+        layout.addWidget(self.logCard)
+
+    def _applyTheme(self):
+        foreground = "#d4ddeb" if isDarkTheme() else "#334155"
         self.logText.setStyleSheet("""
             QPlainTextEdit {
                 border: none;
@@ -70,10 +86,7 @@ class LogInterface(QWidget):
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
             }
-        """)
-
-        cardLayout.addWidget(self.logText)
-        layout.addWidget(self.logCard)
+        """ + f"QPlainTextEdit {{ color: {foreground}; }}")
 
     def appendLog(self, message: str):
         """追加日志消息"""

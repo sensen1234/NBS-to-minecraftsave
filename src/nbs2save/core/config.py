@@ -28,6 +28,10 @@ GENERATE_CONFIG = {
     # 程序会根据type参数自动添加相应的扩展名
     # 例如: 如果type为'schematic'且output_file为'test'，则生成'test.schem'
     "output_file": "test",
+    # NoteBetter 音色映射；GUI 可编辑并导出对应的配置与资源包。
+    # 例如 {"nbs_id": 16, "name": "Piano", "base_block": "minecraft:diamond_block",
+    #       "sound_id": "nbs2save:custom.piano", "sound_file": "piano.ogg", "root_key": 45}
+    "custom_instruments": [],
 }
 
 # --------------------------

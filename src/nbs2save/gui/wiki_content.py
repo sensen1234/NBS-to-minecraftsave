@@ -13,7 +13,43 @@ def build_wiki_content(el):
     """向 Interpreter 添加 wiki 内容元素"""
 
     el.add_heading(1, "NBS-to-Minecraftsave 完整使用指南")
-    el.add_blockquote("**NBS-to-Minecraftsave** 是一款强大的转换工具，可将 Note Block Studio 制作的音乐文件 (`.nbs`) 转换为 Minecraft 中可播放的格式。")
+    el.add_blockquote("将 Note Block Studio 的音乐带入 Minecraft：先组织轨道与空间布局，再试听、检查和导出。")
+    el.add_heading(2, "快速开始：完成一份作品")
+    el.add_numbered_list([
+        "在「创作项目」选择 `.nbs` 文件，查看自动生成的歌曲概览，选择输出路径和格式。阶梯布局请选择 Schematic。",
+        "在「轨道布局」填写每组包含的 NBS 轨道 ID；ID 从 **0** 开始，多个 ID 用英文逗号分隔，例如 `0,1,3`。复制组可复用方块、布局和轨道设置。",
+        "打开「创作工作台」，用坐标输入、2D 点位或 3D 原点拖动调整位置。布局工具可批量平移或沿 Z 轴等距排列，先预览再应用；支持撤销、重做和恢复初始布局。",
+        "设置监听点和朝向，点击「生成并试听」。使用「靠近当前组」和「朝向当前组」可快速建立监听位置。NBS 速度用于原曲参考，红石速度按 10 tick/秒播放；监听坐标是双耳位置，通常高于玩家脚底 1.62 格。",
+        "使用自定义乐器时，在「自定义音色」从 NBS 导入，给每种音色配置独立底座、单声道 OGG 和采样原音键，先试听选中采样，再导出 NoteBetter 安装包。",
+        "运行「创作检查」，核对未分配的轨道、音域、缺失采样和输出格式。保存项目 JSON，再导出结构。",
+    ])
+    el.add_heading(3, "工作台操作速查")
+    el.add_table(
+        headers=["操作", "方法"],
+        rows=[
+            ["选择轨道组", "左侧下拉框，或点击 2D 点位、3D 方块 / 原点"],
+            ["修改位置", "输入 XYZ；2D 拖点；3D 拖原点调整 XZ，按住 Shift 调整高度"],
+            ["观察 3D", "左键旋转，右键或中键平移，滚轮缩放，F 适应全部"],
+            ["批量布局", "布局工具中平移全部组或沿 Z 轴排列，确认前查看坐标变化"],
+            ["撤销 / 重做", "Ctrl+Z / Ctrl+Shift+Z，整次拖动或批量布局作为一次修改"],
+            ["保存布局", "应用全部并关闭；取消则丢弃本次坐标和试听设置草稿"],
+        ],
+    )
+    el.add_paragraph("3D 预览复用真实导出位置，材质为示意，不模拟红石运行。试听按最终音符盒位置计算距离衰减、双耳时差和方向；推荐使用耳机。未提供本地 Minecraft 采样时，原版音色使用合成参考声音。它用于空间布局参考，不能完全替代游戏内验收。")
+    el.add_heading(3, "自定义音色与 NoteBetter 安装")
+    el.add_paragraph("NBS ID 0–15 可覆盖原版音色，16 起通常为自定义乐器。每种音色使用独立下垫块，避免同一底座触发多个映射。采样原音键采用 NBS key，默认 45；当前结构音域为 key 33–57，超出时沿用 note=0 的处理。")
+    el.add_paragraph("导出的外层 ZIP 是安装包，包含 `config/notebetterfabric.json`、`resourcepacks` 下的内层音效包 ZIP 和安装说明。每位听众需安装兼容的 NoteBetter Fabric，将映射配置放入客户端 `config`（已有配置请合并 `mappings`），将内层 ZIP 放入 `resourcepacks` 并启用，然后重启游戏。模组按底座方块匹配，会影响使用该底座的全部音符盒。")
+    el.add_heading(3, "项目与外观快捷操作")
+    el.add_table(
+        headers=["快捷键 / 入口", "功能"],
+        rows=[
+            ["Ctrl+S / Ctrl+O", "保存 / 打开项目 JSON"],
+            ["Ctrl+Shift+P", "打开创作工作台"],
+            ["Ctrl+Shift+K", "检查当前创作设置"],
+            ["左侧「外观」", "切换浅色、深色或跟随系统，并记住选择"],
+            ["运行日志 → 复制日志", "复制转换信息以便排查问题"],
+        ],
+    )
     el.add_separator()
     el.add_heading(2, "一、环境准备")
     el.add_heading(3, "1.1 系统要求")
@@ -21,7 +57,7 @@ def build_wiki_content(el):
         headers=["项目", "要求"],
         rows=[
             ["**操作系统**", "Windows 10/11、macOS、Linux 均可 (只要能运行 python 就行)"],
-            ["**Python 版本**", "Python 3.8 及以上版本"],
+            ["**Python 版本**", "Python 3.10–3.13"],
             ["**Minecraft 版本**", "Java Edition 1.13 至 26.1.1"],
         ],
     )
@@ -29,7 +65,7 @@ def build_wiki_content(el):
     el.add_heading(4, "步骤 1：安装 Python")
     el.add_numbered_list([
         "访问 [Python 官网](https://www.python.org/downloads/)",
-        "下载 Python 3.8 或更高版本",
+        "下载 Python 3.10–3.13",
         "安装时**务必勾选 \"Add Python to PATH\"**(添加到环境变量)",
         "打开命令提示符 (PowerShell)，输入以下命令验证安装：",
     ])
@@ -85,21 +121,24 @@ def build_wiki_content(el):
     el.add_heading(4, "启动 GUI")
     el.add_code_block("sh", "uv run src/app.py")
     el.add_heading(4, "界面结构")
-    el.add_paragraph("程序界面分为三个主要标签页：")
+    el.add_paragraph("左侧导航提供以下页面：")
     el.add_table(
         headers=["标签页", "图标", "功能说明"],
         rows=[
-            ["**基础设置**", "⚙️", "文件输入输出、版本选择、格式配置"],
-            ["**轨道组**", "🛤️", "轨道分组管理、坐标规划、方块配置"],
+            ["**创作项目**", "🏠", "文件输入输出、歌曲概览、版本与格式配置"],
+            ["**轨道布局**", "🛤️", "轨道分组管理、创作工作台、方块配置"],
+            ["**自定义音色**", "🎵", "NBS 乐器映射、OGG 试听、NoteBetter 安装包导出"],
+            ["**实用工具**", "🧰", "声像与音量换算等辅助工具"],
+            ["**使用文档**", "📖", "本使用指南"],
             ["**运行日志**", "📝", "实时显示转换进度和错误信息"],
         ],
     )
     el.add_separator()
-    el.add_heading(4, "基础设置详解")
+    el.add_heading(4, "创作项目详解")
     el.add_table(
         headers=["配置项", "说明", "操作方式"],
         rows=[
-            ["**文件输入**", "选择要转换的 `.nbs` 文件", "点击\"浏览...\"按钮选择文件"],
+            ["**NBS 乐谱**", "选择要转换的 `.nbs` 文件", "点击「选择文件」并查看歌曲概览"],
             ["**输出路径**", "设置生成文件的保存路径", "自动根据输入文件名填充，可手动修改"],
             ["**目标游戏版本**", "选择 Minecraft Java Edition 版本", "从下拉菜单选择对应版本"],
             ["**输出格式**", "选择生成文件类型", "二选一：Schem 或 Mcfunction"],
@@ -121,21 +160,22 @@ def build_wiki_content(el):
         headers=["列名", "说明", "示例值"],
         rows=[
             ["**ID**", "轨道组唯一标识符", "`0`, `1`, `2`..."],
-            ["**基准 X**", "该组在 Minecraft 世界中的 X 坐标", "`0`, `100`, `-50`..."],
-            ["**基准 Y**", "该组在 Minecraft 世界中的 Y 坐标 (高度)", "`64`, `100`..."],
-            ["**基准 Z**", "该组在 Minecraft 世界中的 Z 坐标", "`0`, `200`..."],
-            ["**坐标规划**", "打开可视化坐标选择器", "点击 📍 选点 按钮"],
-            ["**轨道 ID**", "NBS 文件中的轨道编号 (多个用逗号分隔)", "`0,1,2,3,4,5,6`"],
+            ["**起点 X**", "该组的 X 起点坐标", "`0`, `100`, `-50`..."],
+            ["**起点 Y**", "该组的 Y 起点坐标 (高度)", "`64`, `100`..."],
+            ["**起点 Z**", "该组的 Z 起点坐标", "`0`, `200`..."],
+            ["**位置**", "打开可视化创作工作台", "点击「定位」按钮"],
+            ["**NBS 轨道 ID**", "NBS 文件中的轨道编号 (从 0 开始，多个用逗号分隔)", "`0,1,2,3,4,5,6`"],
             ["**基础方块**", "构成平台的主体方块类型", "`minecraft:iron_block`"],
             ["**覆盖方块**", "覆盖在平台顶层的方块", "`minecraft:iron_block`"],
-            ["**生成模式**", "生成结构的样式", "`default` 或 `staircase`"],
+            ["**生成模式**", "水平布局、阶梯向下或阶梯向上", "`default`、`staircase`、`staircase_up`"],
+            ["**偏移模式**", "按单个音符的声像或音量计算偏移", "声像、音量"],
         ],
     )
     el.add_heading(4, "详细说明")
     el.add_bullet_list([
         "ID：",
     ])
-    el.add_paragraph("每个 ID 对应一个`轨道组`，如 0 对应第一个轨道组，2 对应第二个，以此类推")
+    el.add_paragraph("每个 ID 对应一个`轨道组`，如 0 对应第一个轨道组，1 对应第二个，以此类推。")
     el.add_paragraph("通常不需要修改该数值")
     el.add_bullet_list([
         "基准 X、Y、Z：",
@@ -150,9 +190,9 @@ def build_wiki_content(el):
     ])
     el.add_paragraph("如：基准 X=100，基准 Y=64，基准 Z=0 表示轨道组的**第一个方块 (cover 或音符盒)**在 (100,64,0) 位置生成 (不难理解，因为 mcfunction 模式为一大堆命令，命令执行的为`setblock x y z 方块类型`，故 XYZ 为 Minecraft 中的坐标，与 Schematic 文件的坐标不同)")
     el.add_bullet_list([
-        "坐标规划 (GUI 选点)：",
+        "坐标规划 (创作工作台)：",
     ])
-    el.add_paragraph("点击\"📍 选点\"按钮，打开可视化界面在网格上拖动选择坐标 (选择的为轨道组的 XY 坐标，不支持 Z 坐标) (PS：程序本身就是默认为向东边生成，所以 GUI 选点不能设定 Z 坐标)")
+    el.add_paragraph("点击组内「定位」或页面顶部「打开创作工作台」。南视图可拖动 X/Y，西视图可拖动 Z/Y；也可直接输入 XYZ。切换 3D 后可拖动组原点调整 XZ，按住 Shift 调整 Y。全部组共用一份草稿，点击「应用全部并关闭」后写回项目。")
     el.add_bullet_list([
         "轨道 ID：",
     ])
@@ -161,14 +201,15 @@ def build_wiki_content(el):
     el.add_bullet_list([
         "基础方块、覆盖方块：",
     ])
-    el.add_paragraph("每个轨道组的音符平台和红石线的方块类型，基础方块用于放置在音符盒下一层中的方块，覆盖方块用于放置在音符盒同层的方块。 该处为 Minecraft 中的方块类型，如`minecraft:iron_block`、`minecraft:stone`等。")
+    el.add_paragraph("这两项设置红石线路的基座和覆盖方块；音符盒的下垫块由乐器映射或「自定义音色」决定，音符盒上方会留空以便发声。 该处为 Minecraft 中的方块类型，如`minecraft:iron_block`、`minecraft:stone`等。")
     el.add_bullet_list([
         "生成模式：",
     ])
-    el.add_paragraph("生成结构的样式，`default`为默认模式，`staircase`为阶梯向下模式。默认模式为`default`。")
+    el.add_paragraph("生成结构的样式，`default`为水平布局，`staircase`为阶梯向下，`staircase_up`为阶梯向上。两种阶梯布局均需 Schematic 输出。")
     el.add_bullet_list([
         "`default`模式：所有音符平台和红石线保持在同一水平高度。",
         "`staircase`模式：当左右偏移 ≥ 3 时，音符平台逐级向下阶梯式生成。",
+        "`staircase_up`模式：音符平台向上阶梯式生成。",
     ])
     el.add_paragraph("**生成模式对比**：")
     el.add_table(
@@ -176,6 +217,7 @@ def build_wiki_content(el):
         rows=[
             ["`default`", "默认模式", "所有音符平台和红石线保持在同一水平高度", "大多数情况"],
             ["`staircase`", "阶梯向下模式", "当左右偏移 ≥ 3 时，音符平台逐级向下阶梯式生成", "大型音乐作品、立体视觉效果"],
+            ["`staircase_up`", "阶梯向上模式", "音符平台向上延伸，需 Schematic 输出", "需要向上延展的立体布局"],
         ],
     )
     el.add_separator()
@@ -198,7 +240,7 @@ def build_wiki_content(el):
     )
     el.add_separator()
     el.add_heading(4, "轨道组配置 (`GROUP_CONFIG`)")
-    el.add_code_block("python", "GROUP_CONFIG = {\n    # 轨道组 0 的配置\n    0: {\n        # 基准坐标 (x, y, z)，必须是字符串类型\n        'base_coords': (\"0\", \"0\", \"0\"),\n\n        # 该组包含的轨道 ID 列表\n        'layers': [0, 1, 2, 3, 4, 5, 6],\n\n        # 方块配置\n        'block': {\n            # 基础平台方块\n            'base': 'minecraft:iron_block',\n            # 顶部覆盖方块\n            'cover': 'minecraft:iron_block'\n        },\n\n        # 生成模式：'default' 或 'staircase'\n        'generation_mode': 'default'\n    },\n}")
+    el.add_code_block("python", "GROUP_CONFIG = {\n    # 轨道组 0 的配置\n    0: {\n        # 基准坐标 (x, y, z)，必须是字符串类型\n        'base_coords': (\"0\", \"0\", \"0\"),\n\n        # 该组包含的轨道 ID 列表\n        'layers': [0, 1, 2, 3, 4, 5, 6],\n\n        # 方块配置\n        'block': {\n            # 基础平台方块\n            'base': 'minecraft:iron_block',\n            # 顶部覆盖方块\n            'cover': 'minecraft:iron_block'\n        },\n\n        # 生成模式：'default'、'staircase' 或 'staircase_up'\n        'generation_mode': 'default'\n    },\n}")
     el.add_paragraph("**参数详解**：")
     el.add_table(
         headers=["参数名", "数据类型", "说明", "示例值"],
@@ -207,13 +249,13 @@ def build_wiki_content(el):
             ["`layers`", "`list[int]`", "NBS 文件中的轨道 ID 列表，对应 NBS 中的轨道编号如 0 对应 NBS 的第一个轨道", "`[0, 1, 2, 3]`"],
             ["`block.base`", "`str`", "基础平台方块 (放置在音符盒下一层的方块)", "`'minecraft:iron_block'`"],
             ["`block.cover`", "`str`", "顶部覆盖方块 (放置在音符盒同层的方块，用于隐藏红石线路)", "`'minecraft:iron_block'`"],
-            ["`generation_mode`", "`str`", "生成模式：`default`(默认，同一水平高度) 或 `staircase`(阶梯向下)", "`'default'` 或 `'staircase'`"],
+            ["`generation_mode`", "`str`", "生成模式：`default`(水平)、`staircase`(阶梯向下)、`staircase_up`(阶梯向上)；阶梯需 Schematic", "`'default'`"],
         ],
     )
     el.add_blockquote("💡 **坐标说明**：  - 若输出格式为 **schematic**：`base_coords` 为相对于 `(0,0,0)` 的向量位置，与 Minecraft 世界原点不同 - 若输出格式为 **mcfunction**：`base_coords` 为 Minecraft 中的绝对坐标  💡 **Y 坐标建议**：设置在 `64` 或更高，避免结构生成在地底。")
     el.add_separator()
     el.add_heading(3, "3.3 常量配置")
-    el.add_blockquote("⚠️ 通常无需修改，除非需要添加自定义音色。")
+    el.add_blockquote("通常无需修改。自定义音色请在 GUI 的「自定义音色」页或 `GENERATE_CONFIG.custom_instruments` 中配置。")
     el.add_paragraph("**文件位置**：`src/nbs2save/core/constants.py`")
     el.add_heading(4, "乐器映射 (`INSTRUMENT_MAPPING`)")
     el.add_paragraph("定义 NBS 乐器 ID 到 Minecraft 音符盒音色的对应关系：")
@@ -262,7 +304,7 @@ def build_wiki_content(el):
         ],
     )
     el.add_heading(4, "音高映射 (`NOTEPITCH_MAPPING`)")
-    el.add_paragraph("将 MIDI 键值 (`33-57`) 映射到 Minecraft 音符盒音高 (`0-24`)。")
+    el.add_paragraph("将 NBS key (`33-57`) 映射到 Minecraft 音符盒音高 (`0-24`)。")
     el.add_separator()
     el.add_heading(2, "五、生成示例&高级生成")
     el.add_heading(3, "5.1 多轨道组管理")
@@ -331,13 +373,15 @@ def build_wiki_content(el):
     el.add_code_block("python", "'generation_mode': 'staircase'")
     el.add_paragraph("如图所示：")
     el.add_image("![alt text](img/image-5.png)", "")
+    el.add_heading(4, "阶梯向上模式 (`staircase_up`)")
+    el.add_paragraph("音符平台向上延伸，与阶梯向下共同提供立体布局。配置为 `'generation_mode': 'staircase_up'`，并选择 Schematic 输出；mcfunction 仅支持水平布局。具体高度和红石位置可在 3D 预览中查看。")
     el.add_separator()
     el.add_heading(3, "5.4 坐标系统详解 (普通用户无需了解，该处为开发需要用到的)")
     el.add_heading(4, "关键变量")
     el.add_table(
         headers=["变量名", "含义", "计算公式", "说明"],
         rows=[
-            ["`tick_x`", "音符的 X 坐标", "`base_x + tick × 2`", "每个 tick 占用 2 格 X 轴空间"],
+            ["`tick_x`", "音符的 X 坐标", "`base_x + tick × 2`", "每个 NBS tick 占用 2 格 X 轴空间"],
             ["`base_x, base_y, base_z`", "轨道组基准坐标", "—", "定义整个结构的起始位置"],
             ["`pan_offset`", "声像偏移量", "`panning ÷ 10`", "影响音符的 Z 轴位置"],
             ["`z_pos`", "音符的最终 Z 坐标", "`base_z + pan_offset`", "音符在南北方向的实际位置"],
@@ -507,7 +551,7 @@ def build_wiki_content(el):
     el.add_paragraph("**解决方法**：")
     el.add_numbered_list([
         "检查 NBS 文件使用的乐器是否在支持范围内 (ID `0-15`)",
-        "确保音符的 MIDI 键值在 `33-57` 范围内",
+        "确保音符的 NBS key 在 `33-57` 范围内",
         "尝试在 NBS 编辑器中调整不兼容的音符",
     ])
     el.add_separator()
@@ -599,7 +643,7 @@ def build_wiki_content(el):
         headers=["限制项", "说明"],
         rows=[
             ["🔊 轨道声像", "无法识别 NBS 中整个轨道的声像偏移，只能识别单个音符的声像"],
-            ["🎵 音高范围", "Minecraft 音符盒支持的音高范围为 `0-24`(对应 MIDI 键值 `33-57`)"],
+            ["🎵 音高范围", "Minecraft 音符盒支持的音高范围为 `0-24`(对应 NBS key `33-57`)"],
             ["⚠️ 位置冲突", "同一时间点同一 Z 轴位置不能有多个音符"],
             ["⏱️ 文件大小", "超大型音乐文件可能需要较长时间生成"],
         ],

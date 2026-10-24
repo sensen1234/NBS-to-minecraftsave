@@ -40,11 +40,9 @@ class AnimationUtils:
 
         widget._fade_in_anim = group
 
-        def on_finished():
-            widget._fade_in_anim = None
-
-        group.finished.connect(on_finished)
-
+        # Keep the group alive until its owning widget is destroyed. Clearing
+        # the last Python reference inside finished can destroy the group
+        # while Qt is still dispatching that signal (a native crash on Windows).
         group.start()
 
 

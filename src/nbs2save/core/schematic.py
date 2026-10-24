@@ -20,7 +20,7 @@ from typing import List
 from mcschematic import MCSchematic
 from pynbs import Note
 
-from .constants import INSTRUMENT_MAPPING, INSTRUMENT_BLOCK_MAPPING, NOTEPITCH_MAPPING
+from .custom_instruments import get_note_block_info
 from .core import GroupProcessor, OutputFormatStrategy
 
 
@@ -128,7 +128,7 @@ class SchematicOutputStrategy(OutputFormatStrategy):
         # 计算音符的位置坐标
         tick_x, y, z_pos = processor.get_note_position(note)
         # 获取音符方块的信息
-        instrument, base_block, note_pitch = self.get_note_block_info(note)
+        instrument, base_block, note_pitch = self.get_note_block_info(note, processor.config)
 
         # 设置音符方块
         self.schem.setBlock(
@@ -163,12 +163,9 @@ class SchematicOutputStrategy(OutputFormatStrategy):
     # 工具方法
     # ----------------------
     @staticmethod
-    def get_note_block_info(note: Note):
+    def get_note_block_info(note: Note, config=None):
         """根据 instrument 获取音符方块属性。"""
-        instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
-        base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
-        note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
-        return instrument, base_block, note_pitch
+        return get_note_block_info(note, config)
 
     @staticmethod
     def is_sand_block(block: str) -> bool:

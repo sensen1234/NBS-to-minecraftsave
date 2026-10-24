@@ -6,7 +6,7 @@ import os
 import sys
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QPainterPath, QPixmap
+from PyQt6.QtGui import QPainter, QPainterPath, QPixmap, QFont, QColor
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout
 
 from qfluentwidgets import (
@@ -20,6 +20,7 @@ from qfluentwidgets import (
     FluentIcon,
     IconWidget,
 )
+from .studio_style import apply_page_style, label_font, muted_label
 
 
 # ── 程序元信息 ──
@@ -53,9 +54,9 @@ class InfoCard(CardWidget):
         textLayout = QVBoxLayout()
         textLayout.setSpacing(2)
         titleLabel = BodyLabel(title)
-        titleLabel.setStyleSheet("color: #888; font-size: 12px;")
+        muted_label(label_font(titleLabel, 12))
         valueLabel = BodyLabel(value)
-        valueLabel.setStyleSheet("font-size: 14px; font-weight: 500;")
+        label_font(valueLabel, 14, QFont.Weight.Medium)
         textLayout.addWidget(titleLabel)
         textLayout.addWidget(valueLabel)
 
@@ -144,7 +145,7 @@ class DeveloperCard(CardWidget):
 
         # ── 开发者 ──
         devTitle = SubtitleLabel("开发者", self)
-        devTitle.setStyleSheet("font-size: 16px; font-weight: 600;")
+        label_font(devTitle, 16, QFont.Weight.DemiBold)
         layout.addWidget(devTitle)
 
         devsLayout = QHBoxLayout()
@@ -156,7 +157,7 @@ class DeveloperCard(CardWidget):
 
         # ── 贡献者 ──
         contribTitle = SubtitleLabel("贡献者", self)
-        contribTitle.setStyleSheet("font-size: 16px; font-weight: 600;")
+        label_font(contribTitle, 16, QFont.Weight.DemiBold)
         layout.addWidget(contribTitle)
 
         contribLayout = QHBoxLayout()
@@ -191,6 +192,7 @@ class AboutInterface(ScrollArea):
         self._initDisclaimer()
 
         self.vBoxLayout.addStretch(1)
+        apply_page_style(self)
 
     # ── 顶部头部 ──
 
@@ -204,20 +206,22 @@ class AboutInterface(ScrollArea):
         # 应用名
         nameLabel = TitleLabel(APP_NAME, headerCard)
         nameLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        nameLabel.setStyleSheet("font-size: 28px; font-weight: 700;")
+        label_font(nameLabel, 28, QFont.Weight.DemiBold)
         headerLayout.addWidget(nameLabel)
 
         # 版本号
         versionLabel = SubtitleLabel(f"v{APP_VERSION}", headerCard)
         versionLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        versionLabel.setStyleSheet("font-size: 16px; color: #0078d4; font-weight: 600;")
+        label_font(versionLabel, 16, QFont.Weight.DemiBold)
+        versionLabel.setTextColor(QColor("#007f79"), QColor("#66d9cc"))
         headerLayout.addWidget(versionLabel)
 
         # 描述
         descLabel = BodyLabel(APP_DESCRIPTION, headerCard)
         descLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         descLabel.setWordWrap(True)
-        descLabel.setStyleSheet("font-size: 13px; color: #666; margin-top: 10px;min-height: 40px;")
+        muted_label(label_font(descLabel, 13))
+        descLabel.setMinimumHeight(40)
         headerLayout.addWidget(descLabel)
 
         self.vBoxLayout.addWidget(headerCard)
@@ -256,7 +260,7 @@ class AboutInterface(ScrollArea):
         techLayout.setSpacing(12)
 
         titleLabel = SubtitleLabel("技术栈", techCard)
-        titleLabel.setStyleSheet("font-size: 16px; font-weight: 600;")
+        label_font(titleLabel, 16, QFont.Weight.DemiBold)
         techLayout.addWidget(titleLabel)
 
         techs = [
@@ -269,9 +273,10 @@ class AboutInterface(ScrollArea):
         for name, desc in techs:
             row = QHBoxLayout()
             nameLabel = BodyLabel(name)
-            nameLabel.setStyleSheet("font-size: 13px; font-weight: 600; min-width: 140px;")
+            label_font(nameLabel, 13, QFont.Weight.DemiBold)
+            nameLabel.setMinimumWidth(140)
             descLabel = CaptionLabel(desc)
-            descLabel.setStyleSheet("font-size: 12px; color: #888;")
+            muted_label(label_font(descLabel, 12))
             row.addWidget(nameLabel)
             row.addWidget(descLabel)
             row.addStretch(1)
@@ -288,7 +293,7 @@ class AboutInterface(ScrollArea):
         linkLayout.setSpacing(16)
 
         titleLabel = SubtitleLabel("链接", linkCard)
-        titleLabel.setStyleSheet("font-size: 16px; font-weight: 600;")
+        label_font(titleLabel, 16, QFont.Weight.DemiBold)
         linkLayout.addWidget(titleLabel)
         linkLayout.addStretch(1)
 
@@ -319,7 +324,7 @@ class AboutInterface(ScrollArea):
         disclaimerLayout.setSpacing(8)
 
         titleLabel = SubtitleLabel("声明", disclaimerCard)
-        titleLabel.setStyleSheet("font-size: 16px; font-weight: 600;")
+        label_font(titleLabel, 16, QFont.Weight.DemiBold)
         disclaimerLayout.addWidget(titleLabel)
 
         lines = [
@@ -330,16 +335,17 @@ class AboutInterface(ScrollArea):
         for line in lines:
             lbl = CaptionLabel(line)
             lbl.setWordWrap(True)
-            lbl.setStyleSheet("font-size: 12px; color: #888; line-height: 1.5;")
+            muted_label(label_font(lbl, 12))
+            lbl.setWordWrap(True)
             disclaimerLayout.addWidget(lbl)
 
         copyrightLabel = CaptionLabel(f"\n© 2025-2026 sensen1234. All rights reserved.")
-        copyrightLabel.setStyleSheet("font-size: 11px; color: #aaa;")
+        muted_label(label_font(copyrightLabel, 11))
         copyrightLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         disclaimerLayout.addWidget(copyrightLabel)
 
         contribLabel = CaptionLabel(f"贡献者: {' & '.join(CONTRIBUTORS)}")
-        contribLabel.setStyleSheet("font-size: 11px; color: #aaa;")
+        muted_label(label_font(contribLabel, 11))
         contribLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         disclaimerLayout.addWidget(contribLabel)
 

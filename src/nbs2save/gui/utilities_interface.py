@@ -21,6 +21,7 @@ from qfluentwidgets import (
 )
 
 from PyQt6.QtWidgets import QTableWidgetItem, QHeaderView
+from .studio_style import PageHeader, apply_page_style, muted_label, label_font
 
 
 # ── 音量-距离参考数据 (仅用于参考表展示) ──
@@ -96,19 +97,15 @@ class UtilitiesInterface(ScrollArea):
         self.vBoxLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # 标题
-        header = TitleLabel("实用工具", self)
-        header.setStyleSheet("font-size: 26px; font-weight: 700;")
+        header = PageHeader("创作工具", "为布局寻找合适的距离，快速估算听感。", "TOOLS", self.scrollWidget)
         self.vBoxLayout.addWidget(header)
-
-        desc = BodyLabel("常用参考数据与速查工具", self)
-        desc.setStyleSheet("color: #888; font-size: 13px; margin-bottom: 8px;")
-        self.vBoxLayout.addWidget(desc)
 
         self._initVolumeTable()
         self._initCalculator()
 
         self.vBoxLayout.addStretch(1)
         self.setWidget(self.scrollWidget)
+        apply_page_style(self)
 
     # ── 参考表 ──
 
@@ -119,14 +116,14 @@ class UtilitiesInterface(ScrollArea):
         cl.setSpacing(12)
 
         title = SubtitleLabel("音量与玩家可听距离", card)
-        title.setStyleSheet("font-size: 16px; font-weight: 600;")
+        label_font(title, 16)
         cl.addWidget(title)
 
         note = CaptionLabel(
-            "Minecraft Java Edition 音符盒声学模型参考数据，仅供参考。",
+            "原版音符盒的音量与距离参考；NoteBetter 自定义声音听距通常为 16 格。",
             card,
         )
-        note.setStyleSheet("color: #888; font-size: 12px;")
+        muted_label(label_font(note, 12))
         cl.addWidget(note)
 
         table = TableWidget(card)
@@ -165,7 +162,7 @@ class UtilitiesInterface(ScrollArea):
         cl.setSpacing(12)
 
         title = SubtitleLabel("音量 ↔ 距离 计算器", card)
-        title.setStyleSheet("font-size: 16px; font-weight: 600;")
+        label_font(title, 16)
         cl.addWidget(title)
 
         # 单行: [音量 SpinBox] [→ 或 ←] [距离 SpinBox] [交换按钮]
@@ -173,7 +170,7 @@ class UtilitiesInterface(ScrollArea):
         row.setSpacing(10)
 
         lbl_vol = StrongBodyLabel("音量", card)
-        lbl_vol.setStyleSheet("font-size: 13px;")
+        label_font(lbl_vol, 13)
         self.spin_vol = DoubleSpinBox(card)
         self.spin_vol.setRange(0, 100)
         self.spin_vol.setDecimals(1)
@@ -187,7 +184,7 @@ class UtilitiesInterface(ScrollArea):
         self.arrowLabel.setStyleSheet("font-size: 20px; font-weight: 700; color: #0078d4;")
 
         lbl_dist = StrongBodyLabel("距离", card)
-        lbl_dist.setStyleSheet("font-size: 13px;")
+        label_font(lbl_dist, 13)
         self.spin_dist = DoubleSpinBox(card)
         self.spin_dist.setRange(0, 100)
         self.spin_dist.setDecimals(1)
@@ -216,7 +213,7 @@ class UtilitiesInterface(ScrollArea):
             card,
         )
         tip.setWordWrap(True)
-        tip.setStyleSheet("color: #888; font-size: 12px; margin-top: 4px;")
+        muted_label(label_font(tip, 12))
         cl.addWidget(tip)
 
         # 信号 (防循环)

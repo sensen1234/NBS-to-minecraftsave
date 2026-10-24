@@ -19,7 +19,7 @@ from __future__ import annotations
 from mcschematic import MCSchematic
 from pynbs import Note
 
-from .constants import INSTRUMENT_MAPPING, INSTRUMENT_BLOCK_MAPPING, NOTEPITCH_MAPPING
+from .custom_instruments import get_note_block_info
 from .core import GroupProcessor, OutputFormatStrategy
 
 
@@ -183,7 +183,7 @@ class StaircaseSchematicOutputStrategy(OutputFormatStrategy):
             y_pos = base_y
 
         # 获取音符方块的信息
-        instrument, base_block, note_pitch = self.get_note_block_info(note)
+        instrument, base_block, note_pitch = self.get_note_block_info(note, processor.config)
 
         # 设置音符方块
         self.schem.setBlock(
@@ -212,12 +212,9 @@ class StaircaseSchematicOutputStrategy(OutputFormatStrategy):
     # 工具方法
     # ----------------------
     @staticmethod
-    def get_note_block_info(note: Note):
+    def get_note_block_info(note: Note, config=None):
         """根据 instrument 获取音符方块属性。"""
-        instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
-        base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
-        note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
-        return instrument, base_block, note_pitch
+        return get_note_block_info(note, config)
 
     @staticmethod
     def is_sand_block(block: str) -> bool:
@@ -337,7 +334,7 @@ class StaircaseUpSchematicOutputStrategy(OutputFormatStrategy):
             note_base_y = base_y + distance - 3
             note_block_y = base_y + distance - 2
 
-        instrument, base_block, note_pitch = self.get_note_block_info(note)
+        instrument, base_block, note_pitch = self.get_note_block_info(note, processor.config)
 
         # 设置音符方块（最上层）
         self.schem.setBlock(
@@ -356,11 +353,8 @@ class StaircaseUpSchematicOutputStrategy(OutputFormatStrategy):
         self.schem.save(".", path.rsplit("/", 1)[-1], processor.config["data_version"])
 
     @staticmethod
-    def get_note_block_info(note: Note):
-        instrument = INSTRUMENT_MAPPING.get(note.instrument, "harp")
-        base_block = INSTRUMENT_BLOCK_MAPPING.get(note.instrument, "minecraft:stone")
-        note_pitch = NOTEPITCH_MAPPING.get(note.key, "0")
-        return instrument, base_block, note_pitch
+    def get_note_block_info(note: Note, config=None):
+        return get_note_block_info(note, config)
 
     @staticmethod
     def is_sand_block(block: str) -> bool:

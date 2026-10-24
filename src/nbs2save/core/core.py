@@ -401,7 +401,7 @@ class GroupProcessor(ABC):
     # ----------------------
     # 逐 tick 处理
     # ----------------------
-    def process_group(self):
+    def process_group(self, start_tick: int = 0, end_tick: int | None = None):
         """
         从 tick 0 到 global_max_tick，每一步：
         1. 生成基础时钟结构；
@@ -410,10 +410,17 @@ class GroupProcessor(ABC):
         4. 生成声像平台；
         5. 生成音符方块。
         """
-        current_tick = 0
+        # Optional inclusive bounds let the preview reuse the exact generation
+        # pipeline without walking an entire song. Export keeps the full range.
+        current_tick = max(0, start_tick)
+        last_tick = self.global_max_tick if end_tick is None else min(
+            end_tick, self.global_max_tick
+        )
         note_index = 0  # 已处理到的音符索引
+        while note_index < len(self.notes) and self.notes[note_index].tick < current_tick:
+            note_index += 1
 
-        while current_tick <= self.global_max_tick:
+        while current_tick <= last_tick:
             # 1. 更新进度
             progress = (
                 int((current_tick / self.global_max_tick) * 100)

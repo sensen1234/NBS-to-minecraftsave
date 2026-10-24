@@ -28,11 +28,14 @@ from qfluentwidgets import (
     isDarkTheme,
     ToolButton,
     TransparentToolButton,
+    qconfig,
+    setCustomStyleSheet,
 )
 
 from PyQt6.QtWidgets import QTableWidgetItem, QHeaderView, QSizePolicy, QFrame
 
 from .wiki_content import build_wiki_content
+from .studio_style import PageHeader, apply_page_style, label_font, muted_label
 
 
 # ── markdown 内联格式: **bold**, `code`, [text](url) → HTML ──
@@ -92,11 +95,13 @@ def _find_img_path(raw_src: str) -> str:
 class WikiContentInterpreter:
     """遍历 wiki 结构化元素，创建对应的 QFluentWidgets 组件"""
 
-    def __init__(self, layout: QVBoxLayout, parent: QWidget, collect_only: bool = False):
+    def __init__(self, layout: QVBoxLayout, parent: QWidget, collect_only: bool = False,
+                 theme_style=None):
         self.layout = layout
         self.parent = parent
         self._collect_only = collect_only
         self._headings = []          # [(level, plain_text, widget)]
+        self._theme_style = theme_style
 
     def get_headings(self):
         """返回已收集的标题列表 [(level, text, widget)]"""
@@ -112,19 +117,19 @@ class WikiContentInterpreter:
 
         if level == 1:
             w = TitleLabel(t, self.parent)
-            w.setStyleSheet("font-size: 24px; font-weight: 700;")
+            label_font(w, 24, QFont.Weight.Bold)
         elif level == 2:
             w = SubtitleLabel(t, self.parent)
-            w.setStyleSheet("font-size: 20px; font-weight: 700;")
+            label_font(w, 20, QFont.Weight.Bold)
         elif level == 3:
             w = StrongBodyLabel(t, self.parent)
-            w.setStyleSheet("font-size: 17px; font-weight: 700;")
+            label_font(w, 17, QFont.Weight.Bold)
         elif level == 4:
             w = BodyLabel(t, self.parent)
-            w.setStyleSheet("font-size: 15px; font-weight: 600;")
+            label_font(w, 15, QFont.Weight.DemiBold)
         else:
             w = BodyLabel(t, self.parent)
-            w.setStyleSheet("font-size: 14px; font-weight: 600;")
+            label_font(w, 14, QFont.Weight.DemiBold)
 
         margin_top = 6 if level == 1 else 18 if level == 2 else 14
         w.setContentsMargins(0, margin_top, 0, 4)
@@ -145,7 +150,7 @@ class WikiContentInterpreter:
             | Qt.TextInteractionFlag.LinksAccessibleByMouse
         )
         w.setOpenExternalLinks(True)
-        w.setStyleSheet("font-size: 14px; line-height: 20px;")
+        label_font(w, 14)
         self.layout.addWidget(w)
 
     def add_code_block(self, language: str, content: str):
@@ -167,7 +172,7 @@ class WikiContentInterpreter:
 
         if language:
             langLabel = CaptionLabel(language, header)
-            langLabel.setStyleSheet("font-size: 11px; color: #888;")
+            muted_label(label_font(langLabel, 11))
             headerLayout.addWidget(langLabel)
         else:
             headerLayout.addStretch(1)
@@ -191,18 +196,19 @@ class WikiContentInterpreter:
         row_h = te.fontMetrics().lineSpacing() or 18
         te.setFixedHeight(min(line_count * row_h + 16, 500))
 
-        isDark = isDarkTheme()
-        te.setStyleSheet(f"""
+        def code_style(dark):
+            return f"""
             PlainTextEdit {{
-                background-color: {"#1e1e1e" if isDark else "#f8f8f8"};
-                color: {"#d4d4d4" if isDark else "#2b2b2b"};
+                background-color: {"#1e1e1e" if dark else "#f8f8f8"};
+                color: {"#d4d4d4" if dark else "#2b2b2b"};
                 font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
                 font-size: 13px;
                 padding: 8px 12px;
                 border: none;
-                border-left: 3px solid {"#4cc2ff" if isDark else "#0078d4"};
+                border-left: 3px solid {"#4cc2ff" if dark else "#0078d4"};
             }}
-        """)
+        """
+        setCustomStyleSheet(te, code_style(False), code_style(True))
         cl.addWidget(te)
         self.layout.addWidget(card)
 
@@ -247,16 +253,19 @@ class WikiContentInterpreter:
         """添加引用块 (CardWidget + 左边框)"""
         if self._collect_only:
             return
-        isDark = isDarkTheme()
-        accent = "#4cc2ff" if isDark else "#0078d4"
-        bg = "#1a2632" if isDark else "#eef6fd"
-        text_color = "#aaaaaa" if isDark else "#555555"
-
         card = QWidget(self.parent)
-        card.setStyleSheet(f"""
-            background-color: {bg};
-            border-left: 3px solid {accent};
-        """)
+        card.setObjectName("wikiQuoteCard")
+        def quote_style(dark):
+            return (
+                "QWidget#wikiQuoteCard {"
+                f"background-color: {'#1a2632' if dark else '#eef6fd'};"
+                f"border-left: 3px solid {'#4cc2ff' if dark else '#0078d4'};"
+                "}"
+            )
+        if self._theme_style:
+            self._theme_style(card, quote_style)
+        else:
+            card.setStyleSheet(quote_style(isDarkTheme()))
         cl = QVBoxLayout(card)
         cl.setContentsMargins(16, 10, 16, 10)
 
@@ -264,7 +273,7 @@ class WikiContentInterpreter:
         w.setWordWrap(True)
         w.setTextFormat(Qt.TextFormat.RichText)
         w.setText(_md_to_html(content))
-        w.setStyleSheet(f"color: {text_color}; background: transparent; border: none;")
+        w.setTextColor(QColor("#555555"), QColor("#aaaaaa"))
         cl.addWidget(w)
         self.layout.addWidget(card)
 
@@ -311,7 +320,7 @@ class WikiContentInterpreter:
 
         if alt:
             caption = CaptionLabel(alt, container)
-            caption.setStyleSheet("color: #999; font-size: 12px;")
+            muted_label(label_font(caption, 12))
             caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
             containerLayout.addWidget(caption)
 
@@ -373,15 +382,18 @@ class WikiInterface(ScrollArea):
         self.vBoxLayout.setSpacing(6)
         self.vBoxLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
+        self._theme_styles = []
         self._buildContent()
         self.setWidget(self.scrollWidget)
+        apply_page_style(self)
+        qconfig.themeChanged.connect(self.reloadContent)
 
     def _buildContent(self):
         """构建页面内容 (标题 + 目录 + wiki 正文)"""
         # 页面标题
-        self.titleLabel = TitleLabel("使用文档", self.scrollWidget)
-        self.titleLabel.setStyleSheet("font-size: 26px; font-weight: 700;")
-        self.vBoxLayout.addWidget(self.titleLabel)
+        header = PageHeader("创作指南", "从第一份 NBS 到空间布局、音色与游戏内播放。", "GUIDE", self.scrollWidget)
+        self.titleLabel = header.titleLabel
+        self.vBoxLayout.addWidget(header)
 
         # 第一遍: 仅收集标题结构 (不创建任何 widget)
         collector = WikiContentInterpreter(
@@ -396,7 +408,8 @@ class WikiInterface(ScrollArea):
             self._buildToc(toc_items)
 
         # 第二遍: 正式渲染 wiki 内容 (此时 headings 中的 widget 才会被创建)
-        interpreter = WikiContentInterpreter(self.vBoxLayout, self.scrollWidget)
+        interpreter = WikiContentInterpreter(self.vBoxLayout, self.scrollWidget,
+                                             theme_style=self._set_theme_style)
         build_wiki_content(interpreter)
 
         self.vBoxLayout.addStretch(1)
@@ -419,7 +432,7 @@ class WikiInterface(ScrollArea):
         toc_icon.setEnabled(False)
         header_row.addWidget(toc_icon)
         toc_title = SubtitleLabel("目录", card)
-        toc_title.setStyleSheet("font-size: 16px; font-weight: 600;")
+        label_font(toc_title, 16, QFont.Weight.DemiBold)
         header_row.addWidget(toc_title)
         header_row.addStretch()
 
@@ -436,18 +449,16 @@ class WikiInterface(ScrollArea):
         cl.addLayout(header_row)
         cl.addSpacing(8)
 
-        isDark = isDarkTheme()
-
         # 样式配置
         _STYLE = {
             2: {"fs": "14px", "fw": "600",
-                "fc": "#1a1a1a" if not isDark else "#e0e0e0",
-                "arrow_color": "#0078d4" if not isDark else "#4cc2ff"},
+                "fc": ("#1a1a1a", "#e0e0e0"),
+                "arrow_color": ("#0078d4", "#4cc2ff")},
             3: {"fs": "13px", "fw": "500",
-                "fc": "#444444" if not isDark else "#bbbbbb",
-                "arrow_color": "#666666" if not isDark else "#999999"},
+                "fc": ("#444444", "#bbbbbb"),
+                "arrow_color": ("#666666", "#999999")},
             4: {"fs": "12px", "fw": "400",
-                "fc": "#666666" if not isDark else "#999999",
+                "fc": ("#666666", "#999999"),
                 "arrow_color": None},
         }
 
@@ -468,33 +479,33 @@ class WikiInterface(ScrollArea):
                 )
                 arrow_btn.setFixedSize(18, 22)
                 arrow_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-                arrow_btn.setStyleSheet(
-                    f"QPushButton {{ color: {s['arrow_color']}; font-size: 12px; "
+                self._set_theme_style(arrow_btn, lambda dark, s=s: (
+                    f"QPushButton {{ color: {s['arrow_color'][dark]}; font-size: 12px; "
                     f"background: transparent; border: none; font-weight: bold; }}"
                     f"QPushButton:hover {{ color: #0078d4; }}"
-                )
+                ))
                 row_layout.addWidget(arrow_btn)
             else:
                 # 无子项时用圆点占位
                 dot = QLabel("\u2022", row_widget)
                 dot.setFixedSize(18, 22)
                 dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                dot.setStyleSheet(
-                    f"color: {'#999999' if not isDark else '#666666'}; "
+                self._set_theme_style(dot, lambda dark: (
+                    f"color: {'#666666' if dark else '#999999'}; "
                     f"font-size: 10px; background: transparent;"
-                )
+                ))
                 row_layout.addWidget(dot)
 
             # 标题文字按钮
             text_btn = QPushButton(text, row_widget)
             text_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            text_btn.setStyleSheet(
+            self._set_theme_style(text_btn, lambda dark, s=s: (
                 f"QPushButton {{ text-align: left; padding: 2px 4px; "
                 f"border-radius: 4px; font-size: {s['fs']}; font-weight: {s['fw']}; "
-                f"color: {s['fc']}; background: transparent; border: none; }}"
+                f"color: {s['fc'][dark]}; background: transparent; border: none; }}"
                 f"QPushButton:hover {{ color: #0078d4; "
                 f"background: rgba(0, 120, 212, 0.08); }}"
-            )
+            ))
             text_btn.setFixedHeight(24)
             text_btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             text_btn.clicked.connect(
@@ -591,12 +602,18 @@ class WikiInterface(ScrollArea):
                     return
                 count += 1
 
-    def reloadContent(self):
-        """主题切换后重建所有组件"""
-        # 清除旧内容
-        while self.vBoxLayout.count():
-            item = self.vBoxLayout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+    def _set_theme_style(self, widget, style):
+        """Track plain Qt controls; Fluent controls handle their own theme styles."""
+        self._theme_styles.append((widget, style))
+        widget.setStyleSheet(style(isDarkTheme()))
 
-        self._buildContent()
+    def reloadContent(self):
+        """Restyle existing content without deleting widgets during Fluent's refresh.
+
+        Rebuilding here can destroy registered Fluent widgets while its style
+        manager is iterating them, causing a native crash on theme switches.
+        Keeping the content also preserves the scroll position and TOC state.
+        """
+        dark = isDarkTheme()
+        for widget, style in self._theme_styles:
+            widget.setStyleSheet(style(dark))

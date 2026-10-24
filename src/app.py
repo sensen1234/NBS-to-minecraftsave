@@ -16,7 +16,7 @@ from qfluentwidgets import setThemeColor, setTheme, Theme
 sys.stdout = _real_stdout
 
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSettings
 
 from nbs2save.gui.window import MainWindow
 
@@ -30,8 +30,13 @@ def main() -> None:
     app.setApplicationVersion("2.4.0")
 
     # 设置强调色与主题（自动跟随系统明暗）
-    setThemeColor('#0078d4')
-    setTheme(Theme.AUTO)
+    setThemeColor('#008f87')
+    saved_theme = QSettings("NBS2Save", "Studio").value("appearance", Theme.AUTO.value)
+    try:
+        theme = Theme(saved_theme)
+    except ValueError:
+        theme = Theme.AUTO
+    setTheme(theme)
 
     window = MainWindow()
     window.show()

@@ -10,7 +10,8 @@ import traceback
 import pynbs
 from mcschematic import Version
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import QFileDialog
 
 from qfluentwidgets import (
@@ -19,6 +20,7 @@ from qfluentwidgets import (
     NavigationItemPosition,
     InfoBar,
     InfoBarPosition,
+    Theme, setTheme, qconfig,
 )
 
 from ..core.constants import MINECRAFT_VERSIONS
@@ -28,6 +30,7 @@ from ..core.mcfunction import McFunctionOutputStrategy
 
 from .home_interface import HomeInterface
 from .groups_interface import GroupsInterface
+from .instruments_interface import InstrumentsInterface
 from .utilities_interface import UtilitiesInterface
 from .log_interface import LogInterface
 from .wiki_interface import WikiInterface
@@ -75,7 +78,7 @@ class MainWindow(MSFluentWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("NBS-to-Minecraft")
-        self.resize(1060, 780)
+        self.resize(1180, 820)
         self.setMinimumSize(800, 600)
 
         # ── 核心数据 ──
@@ -84,6 +87,7 @@ class MainWindow(MSFluentWindow):
             "input_file": "",
             "type": "schematic",
             "output_file": "output",
+            "custom_instruments": [],
         }
 
         self.group_config = {
@@ -103,6 +107,7 @@ class MainWindow(MSFluentWindow):
         self._initInterfaces()
         self._initNavigation()
         self._connectSignals()
+        self._initShortcuts()
 
         # 加载上次配置
         self.load_last_config()
@@ -114,6 +119,7 @@ class MainWindow(MSFluentWindow):
         self.homeInterface = HomeInterface(self)
         self.groupsInterface = GroupsInterface(self)
         self.groupsInterface.setMainWindow(self)
+        self.instrumentsInterface = InstrumentsInterface(self)
         self.utilitiesInterface = UtilitiesInterface(self)
         self.wikiInterface = WikiInterface(self)
         self.logInterface = LogInterface(self)
@@ -122,10 +128,13 @@ class MainWindow(MSFluentWindow):
     def _initNavigation(self):
         # 主要功能（顶部）
         self.addSubInterface(
-            self.homeInterface, FluentIcon.HOME, "基础设置"
+            self.homeInterface, FluentIcon.HOME, "创作项目"
         )
         self.addSubInterface(
-            self.groupsInterface, FluentIcon.TILES, "轨道组"
+            self.groupsInterface, FluentIcon.TILES, "轨道布局"
+        )
+        self.addSubInterface(
+            self.instrumentsInterface, FluentIcon.MUSIC, "自定义音色"
         )
         self.addSubInterface(
             self.utilitiesInterface, FluentIcon.DEVELOPER_TOOLS, "实用工具"
@@ -141,6 +150,12 @@ class MainWindow(MSFluentWindow):
             "运行日志",
             position=NavigationItemPosition.BOTTOM,
         )
+        self.themeButton = self.navigationInterface.addItem(
+            routeKey="appearance", icon=FluentIcon.CONSTRACT,
+            text="外观", onClick=self.cycle_theme, selectable=False,
+            position=NavigationItemPosition.BOTTOM,
+        )
+        self.themeButton.setToolTip("切换浅色 / 深色 / 跟随系统")
         self.addSubInterface(
             self.aboutInterface,
             FluentIcon.INFO,
@@ -154,12 +169,57 @@ class MainWindow(MSFluentWindow):
         self.homeInterface.loadConfigSignal.connect(self.load_config)
         self.homeInterface.saveConfigSignal.connect(self.save_config)
         self.homeInterface.exitSignal.connect(self.close)
+        self.homeInterface.openGroupsSignal.connect(lambda: self.switchTo(self.groupsInterface))
+        self.homeInterface.openWorkbenchSignal.connect(self.groupsInterface.openWorkbench)
+        self.homeInterface.openInstrumentsSignal.connect(lambda: self.switchTo(self.instrumentsInterface))
+        self.groupsInterface.checkBtn.clicked.connect(self.check_project)
 
         # 轨道组按钮
         self.groupsInterface.addBtn.clicked.connect(self.groupsInterface.addGroup)
         self.groupsInterface.removeBtn.clicked.connect(
             self.groupsInterface.removeGroup
         )
+
+    def _initShortcuts(self):
+        self._shortcuts = []
+        for sequence, slot in (
+            ("Ctrl+S", self.save_config), ("Ctrl+O", self.load_config),
+            ("Ctrl+Shift+K", self.check_project),
+            ("Ctrl+Shift+P", self.groupsInterface.openWorkbench),
+        ):
+            shortcut = QShortcut(QKeySequence(sequence), self)
+            shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
+            shortcut.activated.connect(slot)
+            self._shortcuts.append(shortcut)
+
+    def cycle_theme(self):
+        current = qconfig.themeMode.value
+        modes = (Theme.AUTO, Theme.LIGHT, Theme.DARK)
+        next_mode = modes[(modes.index(current) + 1) % len(modes)]
+        setTheme(next_mode)
+        QSettings("NBS2Save", "Studio").setValue("appearance", next_mode.value)
+        name = {Theme.AUTO: "跟随系统", Theme.LIGHT: "浅色", Theme.DARK: "深色"}[next_mode]
+        self.themeButton.setToolTip(f"当前外观：{name} · 点击切换")
+
+    def check_project(self):
+        try:
+            self.collect_settings()
+        except (ValueError, TypeError) as error:
+            self._settings_error(error)
+            return
+        if not self.config.get("input_file") or not os.path.isfile(self.config["input_file"]):
+            self._settings_error("请先在创作项目页选择有效的 NBS 文件，再检查当前设置。")
+            self.switchTo(self.homeInterface)
+            return
+        from .creation_check_dialog import CreationCheckDialog
+        dialog = CreationCheckDialog(self.config["input_file"], self.group_config, self.config, self)
+        dialog.exec()
+        dialog.deleteLater()
+
+    def closeEvent(self, event):
+        self.homeInterface.shutdown()
+        self.instrumentsInterface.shutdown()
+        super().closeEvent(event)
 
     def _syncUIFromConfig(self):
         """将 config/group_config 同步到界面控件"""
@@ -168,6 +228,25 @@ class MainWindow(MSFluentWindow):
         self.homeInterface.setVersion(self.config.get("data_version"))
         self.homeInterface.setType(self.config.get("type", "schematic"))
         self.groupsInterface.refreshTable()
+        self.instrumentsInterface.load_from_config()
+
+    def collect_settings(self):
+        """Commit current controls before previewing, saving or exporting."""
+        self.instrumentsInterface.save_to_config()
+        self.groupsInterface.saveTableToConfig()
+        self.config.update(
+            data_version=self.homeInterface.getVersion(),
+            input_file=self.homeInterface.getInputFile(),
+            type=self.homeInterface.getType(),
+            output_file=self.homeInterface.getOutputFile(),
+        )
+
+    def _settings_error(self, error):
+        InfoBar.error(
+            title="设置有误", content=str(error),
+            orient=Qt.Orientation.Horizontal, isClosable=True,
+            position=InfoBarPosition.TOP, duration=6000, parent=self,
+        )
 
     # ── 日志与进度 ──
 
@@ -188,7 +267,11 @@ class MainWindow(MSFluentWindow):
     # ── 文件配置操作 ──
 
     def save_config(self):
-        self.groupsInterface.saveTableToConfig()
+        try:
+            self.collect_settings()
+        except (ValueError, TypeError) as error:
+            self._settings_error(error)
+            return
         path, _ = QFileDialog.getSaveFileName(
             self, "保存配置", "", "JSON (*.json)"
         )
@@ -264,10 +347,11 @@ class MainWindow(MSFluentWindow):
     # ── 转换核心逻辑 ──
 
     def start_conversion(self):
-        self.groupsInterface.saveTableToConfig()
-        self.config["data_version"] = self.homeInterface.getVersion()
-        self.config["input_file"] = self.homeInterface.getInputFile()
-        self.config["type"] = self.homeInterface.getType()
+        try:
+            self.collect_settings()
+        except (ValueError, TypeError) as error:
+            self._settings_error(error)
+            return
 
         # 标准化输出路径：移除已有扩展名，由核心模块统一添加
         output_file = self.homeInterface.getOutputFile()
