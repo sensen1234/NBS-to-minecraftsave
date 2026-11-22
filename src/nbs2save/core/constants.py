@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from mcschematic import Version
 
 # ==============================================================================
@@ -37,6 +39,10 @@ from mcschematic import Version
 # 13 -> "bit"            比特音色
 # 14 -> "banjo"          班卓琴音色
 # 15 -> "pling"          电钢琴音色
+# 16 -> "copper_horn"    小号
+# 17 -> "copper_horn_exposed" 斑驳小号
+# 18 -> "copper_horn_weathered" 锈蚀小号
+# 19 -> "copper_horn_oxidized" 氧化小号
 INSTRUMENT_MAPPING = {
     0: "harp",
     1: "bass",
@@ -54,7 +60,12 @@ INSTRUMENT_MAPPING = {
     13: "bit",
     14: "banjo",
     15: "pling",
+    16: "copper_horn",
+    17: "copper_horn_exposed",
+    18: "copper_horn_weathered",
+    19: "copper_horn_oxidized",
 }
+VANILLA_INSTRUMENT_COUNT = max(INSTRUMENT_MAPPING) + 1
 
 # --------------------------
 # 乐器对应下方块类型映射
@@ -80,6 +91,10 @@ INSTRUMENT_MAPPING = {
 # 13 -> "minecraft:emerald_block" 比特音色对应绿宝石块
 # 14 -> "minecraft:hay_block"     班卓琴音色对应干草块
 # 15 -> "minecraft:glowstone"     电钢琴音色对应荧石方块
+# 16 -> "minecraft:waxed_copper_block" 小号
+# 17 -> "minecraft:waxed_exposed_copper" 斑驳小号
+# 18 -> "minecraft:waxed_weathered_copper" 锈蚀小号
+# 19 -> "minecraft:waxed_oxidized_copper" 氧化小号
 INSTRUMENT_BLOCK_MAPPING = {
     0: "minecraft:dirt",
     1: "minecraft:oak_planks",
@@ -97,6 +112,10 @@ INSTRUMENT_BLOCK_MAPPING = {
     13: "minecraft:emerald_block",
     14: "minecraft:hay_block",
     15: "minecraft:glowstone",
+    16: "minecraft:waxed_copper_block",
+    17: "minecraft:waxed_exposed_copper",
+    18: "minecraft:waxed_weathered_copper",
+    19: "minecraft:waxed_oxidized_copper",
 }
 
 # --------------------------
@@ -121,47 +140,50 @@ NOTEPITCH_MAPPING = {k: str(v) for v, k in enumerate(range(33, 58))}
 # --------------------------
 # Minecraft版本列表
 # --------------------------
-# MINECRAFT_VERSIONS 定义了程序支持的Minecraft Java Edition版本列表
-# 用于生成schematic文件时指定目标Minecraft版本
-# 版本按从新到旧的顺序排列，确保兼容性
-# 当生成schematic文件时，程序会使用配置中指定的版本
+@dataclass(frozen=True)
+class SchematicVersion:
+    """A Mojang release represented by its label and numeric DataVersion."""
+
+    name: str
+    value: int
+
+    def __str__(self):
+        return f"Version.{self.name}"
+
+
+# Latest stable release in each major/minor line from Mojang's version manifest.
+# Source: https://piston-meta.mojang.com/mc/game/version_manifest_v2.json
+# DataVersion values are from misode/mcmeta summary/versions/data.json. Releases
+# before 1.9 did not define DataVersion and use the legacy sentinel value 0.
+_RELEASES = (
+    ("26.3", 5023), ("26.2", 4903), ("26.1.2", 4790),
+    ("1.21.11", 4671), ("1.20.6", 3839), ("1.19.4", 3337),
+    ("1.18.2", 2975), ("1.17.1", 2730), ("1.16.5", 2586),
+    ("1.15.2", 2230), ("1.14.4", 1976), ("1.13.2", 1631),
+    ("1.12.2", 1343), ("1.11.2", 922), ("1.10.2", 512),
+    ("1.9.4", 184), ("1.8.9", 0), ("1.7.10", 0),
+    ("1.6.4", 0), ("1.5.2", 0), ("1.4.7", 0),
+    ("1.3.2", 0), ("1.2.5", 0), ("1.1", 0), ("1.0", 0),
+)
+
+
+def _schematic_version(release, data_version):
+    name = "JE_" + release.replace(".", "_")
+    return Version.__members__.get(name, SchematicVersion(name, data_version))
+
+
 MINECRAFT_VERSIONS = [
-    Version.JE_1_21_5,
-    Version.JE_1_21_4,
-    Version.JE_1_21_3,
-    Version.JE_1_21_2,
-    Version.JE_1_21_1,
-    Version.JE_1_21,
-    Version.JE_1_20_6,
-    Version.JE_1_20_5,
-    Version.JE_1_20_4,
-    Version.JE_1_20_3,
-    Version.JE_1_20_2,
-    Version.JE_1_20_1,
-    Version.JE_1_20,
-    Version.JE_1_19_4,
-    Version.JE_1_19_3,
-    Version.JE_1_19_2,
-    Version.JE_1_19_1,
-    Version.JE_1_19,
-    Version.JE_1_18_2,
-    Version.JE_1_18_1,
-    Version.JE_1_18,
-    Version.JE_1_17_1,
-    Version.JE_1_17,
-    Version.JE_1_16_5,
-    Version.JE_1_16_4,
-    Version.JE_1_16_3,
-    Version.JE_1_16_2,
-    Version.JE_1_16_1,
-    Version.JE_1_16,
-    Version.JE_1_15_2,
-    Version.JE_1_15_1,
-    Version.JE_1_15,
-    Version.JE_1_14_4,
-    Version.JE_1_14_3,
-    Version.JE_1_14_2,
-    Version.JE_1_14_1,
-    Version.JE_1_14,
-    Version.JE_1_13_2,
+    _schematic_version(release, data_version)
+    for release, data_version in _RELEASES
 ]
+
+
+def schematic_version_from_name(name):
+    """Restore a saved version value, including versions absent from the dependency enum."""
+    if not isinstance(name, str):
+        return None
+    normalized = name.removeprefix("Version.")
+    member = Version.__members__.get(normalized)
+    if member is not None:
+        return member
+    return next((version for version in MINECRAFT_VERSIONS if version.name == normalized), None)

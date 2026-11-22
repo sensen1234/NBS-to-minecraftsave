@@ -1,4 +1,4 @@
-from mcschematic import Version
+from .constants import MINECRAFT_VERSIONS
 
 # ==============================================================================
 # NBS到Minecraft结构转换工具配置文件
@@ -14,8 +14,8 @@ from mcschematic import Version
 GENERATE_CONFIG = {
     # data_version: 指定生成的schematic文件的Minecraft版本
     # 这个参数只在输出格式为schematic时生效
-    # 可选值参考 mcschematic.Version 枚举
-    "data_version": Version.JE_1_21_4,
+    # 可选值参考 core.constants.MINECRAFT_VERSIONS
+    "data_version": MINECRAFT_VERSIONS[0],
     # input_file: 指定要转换的NBS文件路径
     # 程序将读取该文件并解析其中的音符信息
     "input_file": "test.nbs",

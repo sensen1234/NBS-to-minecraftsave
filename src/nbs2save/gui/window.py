@@ -23,7 +23,7 @@ from qfluentwidgets import (
     Theme, setTheme, qconfig,
 )
 
-from ..core.constants import MINECRAFT_VERSIONS
+from ..core.constants import MINECRAFT_VERSIONS, SchematicVersion, schematic_version_from_name
 from ..core.core import GroupProcessor
 from ..core.schematic import SchematicOutputStrategy
 from ..core.mcfunction import McFunctionOutputStrategy
@@ -41,7 +41,7 @@ def _make_json_safe(config: dict, group_config: dict) -> dict:
     """将 config 中的 Version 枚举转为字符串，使其可 JSON 序列化"""
     safe_config = dict(config)
     dv = safe_config.get("data_version")
-    if isinstance(dv, Version):
+    if isinstance(dv, (Version, SchematicVersion)):
         safe_config["data_version"] = dv.name
     return {"app_config": safe_config, "group_config": group_config}
 
@@ -54,10 +54,7 @@ def _restore_from_json(d: dict):
     # 还原 Version 枚举
     dv = config.get("data_version")
     if isinstance(dv, str):
-        try:
-            config["data_version"] = Version[dv]
-        except KeyError:
-            config["data_version"] = MINECRAFT_VERSIONS[0]
+        config["data_version"] = schematic_version_from_name(dv) or MINECRAFT_VERSIONS[0]
 
     # 还原 base_coords 为 tuple
     for gid, cfg in group_config.items():

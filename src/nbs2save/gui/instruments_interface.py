@@ -13,9 +13,10 @@ from PyQt6.QtWidgets import (
 )
 from qfluentwidgets import (
     ScrollArea, CardWidget, TableWidget, SubtitleLabel, BodyLabel,
-    CaptionLabel, PushButton, PrimaryPushButton, SpinBox,
+    CaptionLabel, PushButton, PrimaryPushButton, SpinBox, FluentIcon,
     CheckBox, InfoBar, InfoBarPosition,
 )
+from ..core.constants import VANILLA_INSTRUMENT_COUNT
 from .studio_style import PageHeader, apply_page_style, muted_label
 
 
@@ -51,23 +52,31 @@ class InstrumentsInterface(ScrollArea):
         )
         layout.addWidget(header)
 
-        toolbar = QHBoxLayout()
-        self.add_button = PushButton("新增音色")
-        self.import_button = PushButton("从当前 NBS 导入")
-        self.duplicate_button = PushButton("复制选中")
-        self.remove_button = PushButton("删除选中")
-        self.apply_button = PrimaryPushButton("应用音色设置")
-        toolbar.addWidget(self.import_button)
-        toolbar.addStretch()
+        actions = CardWidget(self.scrollWidget)
+        toolbar = QHBoxLayout(actions)
+        toolbar.setContentsMargins(12, 10, 12, 10)
+        toolbar.setSpacing(8)
+        self.add_button = PushButton("新增音色", actions)
+        self.add_button.setIcon(FluentIcon.ADD)
+        self.import_button = PushButton("从当前 NBS 导入", actions)
+        self.import_button.setIcon(FluentIcon.DOWNLOAD)
+        self.duplicate_button = PushButton("复制选中", actions)
+        self.duplicate_button.setIcon(FluentIcon.COPY)
+        self.remove_button = PushButton("删除选中", actions)
+        self.remove_button.setIcon(FluentIcon.DELETE)
+        self.apply_button = PrimaryPushButton("应用音色设置", actions)
+        self.apply_button.setIcon(FluentIcon.SAVE)
+        for button in (self.add_button, self.duplicate_button, self.remove_button,
+                       self.import_button):
+            toolbar.addWidget(button)
+        toolbar.addStretch(1)
         toolbar.addWidget(self.apply_button)
-        layout.addLayout(toolbar)
-        edit_toolbar = QHBoxLayout()
-        for button in (self.add_button, self.duplicate_button, self.remove_button):
-            edit_toolbar.addWidget(button)
-        edit_toolbar.addStretch()
-        layout.addLayout(edit_toolbar)
+        layout.addWidget(actions)
 
-        self.table = TableWidget()
+        table_card = CardWidget(self.scrollWidget)
+        table_layout = QVBoxLayout(table_card)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        self.table = TableWidget(table_card)
         self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels([
             "NBS ID", "音色名称", "音色下垫块", "声音 ID", "采样原音键", "OGG 文件", "选择",
@@ -79,16 +88,17 @@ class InstrumentsInterface(ScrollArea):
         self.table.setFrameShape(QFrame.Shape.NoFrame)
         self.table.verticalHeader().hide()
         self.table.verticalHeader().setDefaultSectionSize(40)
-        self.table.setMinimumHeight(280)
+        self.table.setMinimumHeight(260)
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setMinimumSectionSize(65)
-        self._column_minima = (70, 120, 185, 200, 95, 180, 65)
-        for column, width in enumerate((70, 150, 205, 230, 100, 215, 65)):
+        self._column_minima = (58, 100, 135, 150, 72, 135, 58)
+        for column, width in enumerate((58, 115, 145, 170, 80, 150, 58)):
             self.table.setColumnWidth(column, width)
         header.setStretchLastSection(False)
         header.sectionResized.connect(self._keep_column_readable)
-        layout.addWidget(self.table, 1)
+        table_layout.addWidget(self.table)
+        layout.addWidget(table_card, 1)
         detail = muted_label(CaptionLabel(
             "声音 ID 是资源包事件名；原音键是采样的实际 NBS 键值（默认 45）。OGG 请使用单声道 Vorbis，"
             "文件路径需持续有效。下垫块必须唯一，否则 NoteBetter 无法区分音色。"
@@ -155,7 +165,7 @@ class InstrumentsInterface(ScrollArea):
         self.sample_play_button.clicked.connect(self.preview_selected_sample)
         self.sample_stop_button.clicked.connect(self.stop_sample_preview)
         for column, tip in {
-            0: "NBS 文件中的音色编号（0–15 可覆盖原版，16 起通常为自定义）",
+            0: "内置 NBS 音色 ID 为 0–19；旧项目仍可用自定义映射覆盖这些编号",
             2: "Minecraft 音符盒下方的方块 ID；每个自定义音色必须唯一",
             3: "资源包中实际播放的声音事件 ID，例如 nbs2save:custom.piano",
             4: "采样录制时对应的 NBS 键值，导出时据此校正音高",
@@ -303,10 +313,10 @@ class InstrumentsInterface(ScrollArea):
                 used.add(int(value))
             except ValueError:
                 pass
-        for candidate in range(16, 256):
+        for candidate in range(VANILLA_INSTRUMENT_COUNT, 256):
             if candidate not in used:
                 return candidate
-        raise ValueError("16–255 的自定义音色 ID 已用完，请删除不用的音色后再添加。")
+        raise ValueError(f"{VANILLA_INSTRUMENT_COUNT}–255 的自定义音色 ID 已用完，请删除不用的音色后再添加。")
 
     def _next_support(self):
         used = {value if ":" in value else "minecraft:" + value for value in self._used_values(2)}

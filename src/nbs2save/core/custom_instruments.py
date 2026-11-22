@@ -30,6 +30,10 @@ RESOURCE_PACK_PATH = "resourcepacks/nbs2save-custom-instruments.zip"
 # Resource pack versions, independently of schematic/data pack versions.
 # Source: https://github.com/misode/mcmeta/blob/summary/versions/data.json
 _PACK_FORMATS = {
+    "26.3": 97, "26.2": 88, "26.1.2": 84,
+    "1.21.11": 75, "1.21.10": 69, "1.21.9": 69,
+    "1.21.8": 64, "1.21.7": 64, "1.21.6": 63,
+    "1.21.5": 55,
     "1.16.5": 6,
     "1.17": 7, "1.17.1": 7,
     "1.18": 8, "1.18.1": 8, "1.18.2": 8,
@@ -37,8 +41,9 @@ _PACK_FORMATS = {
     "1.20": 15, "1.20.1": 15, "1.20.2": 18, "1.20.3": 22,
     "1.20.4": 22, "1.20.5": 32, "1.20.6": 32,
     "1.21": 34, "1.21.1": 34, "1.21.2": 42, "1.21.3": 42,
-    "1.21.4": 46, "1.21.5": 55,
+    "1.21.4": 46,
 }
+_PACK_FORMAT_MINORS = {"26.3": 1}
 
 
 def _entries(config_or_list):
@@ -247,14 +252,14 @@ def resource_pack_format(minecraft_version):
     """Return the known resource pack format for a Version enum or string."""
     version = _version_string(minecraft_version)
     if version not in _PACK_FORMATS:
-        raise ValueError(f"尚无 Minecraft {version} 的 NoteBetter 资源包格式；支持 1.16.5–1.21.5。")
+        raise ValueError(f"尚无 Minecraft {version} 的资源包格式数据。")
     return _PACK_FORMATS[version]
 
 
 def export_notebetter_pack(destination, config_or_list, *, pack_format=None, minecraft_version=None):
     """Write an atomic ZIP bundle containing a real mod config and resource pack.
 
-    ``minecraft_version`` accepts an mcschematic Version or a version string.
+    ``minecraft_version`` accepts a schematic version value or version string.
     If omitted, a config's data_version is used, otherwise Minecraft 1.21.4.
     This ZIP is an installation bundle; its nested resourcepacks ZIP is the
     actual pack to enable in Minecraft, and the config is installed separately.
@@ -265,7 +270,8 @@ def export_notebetter_pack(destination, config_or_list, *, pack_format=None, min
     if minecraft_version is None and isinstance(config_or_list, Mapping):
         minecraft_version = config_or_list.get("data_version")
     version = _version_string(minecraft_version) if minecraft_version is not None else "1.21.4"
-    if pack_format is None:
+    automatic_pack_format = pack_format is None
+    if automatic_pack_format:
         pack_format = resource_pack_format(version)
     if type(pack_format) is not int or pack_format <= 0:
         raise ValueError("pack_format 必须是正整数。")
@@ -273,10 +279,15 @@ def export_notebetter_pack(destination, config_or_list, *, pack_format=None, min
     mappings, sounds = [], {}
     pack_buffer = io.BytesIO()
     with zipfile.ZipFile(pack_buffer, "w", compression=zipfile.ZIP_DEFLATED) as pack:
-        pack.writestr("pack.mcmeta", _json_bytes({"pack": {
+        metadata = {
             "pack_format": pack_format,
             "description": "NBS2Save 自定义音色 / NoteBetter Fabric",
-        }}))
+        }
+        if automatic_pack_format and pack_format >= 69:
+            version_range = [pack_format, _PACK_FORMAT_MINORS.get(version, 0)]
+            metadata["min_format"] = version_range
+            metadata["max_format"] = version_range
+        pack.writestr("pack.mcmeta", _json_bytes({"pack": metadata}))
         for item, sample in samples:
             namespace, sound_path = item["sound_id"].split(":", 1)
             sounds.setdefault(namespace, {})[sound_path] = {

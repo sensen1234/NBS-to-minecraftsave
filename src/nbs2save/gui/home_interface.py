@@ -215,7 +215,8 @@ class HomeInterface(ScrollArea):
         choices.setSpacing(12)
         self.versionCard = _ChoiceField("Minecraft 目标版本", self.paramGroup)
         for version in MINECRAFT_VERSIONS:
-            self.versionCard.addItem(str(version).replace("Version.", ""), version)
+            label = getattr(version, "name", str(version)).removeprefix("JE_").replace("_", ".")
+            self.versionCard.addItem(label, version)
         self.typeCard = _ChoiceField("输出格式", self.paramGroup)
         self.typeCard.addItem("WorldEdit · .schem", "schematic")
         self.typeCard.addItem("命令函数 · .mcfunction", "mcfunction")
@@ -378,6 +379,10 @@ class HomeInterface(ScrollArea):
             if self.versionCard.comboBox.itemData(index) == version:
                 self.versionCard.setCurrentIndex(index)
                 return
+        if version is not None:
+            label = getattr(version, "name", str(version)).removeprefix("JE_").replace("_", ".")
+            self.versionCard.addItem(f"{label} · 项目配置", version)
+            self.versionCard.setCurrentIndex(self.versionCard.comboBox.count() - 1)
 
     def getType(self):
         return self.typeCard.currentData()

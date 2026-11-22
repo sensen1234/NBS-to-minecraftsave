@@ -39,6 +39,8 @@ _NAMES = {
     "pumpkin": "南瓜", "emerald_block": "绿宝石块", "hay_block": "干草块",
     "glowstone": "荧石", "oak_planks": "橡木木板", "barrier": "屏障",
     "redstone_lamp": "红石灯", "redstone_torch": "红石火把",
+    "waxed_copper_block": "涂蜡的铜块", "waxed_exposed_copper": "涂蜡的斑驳铜块",
+    "waxed_weathered_copper": "涂蜡的锈蚀铜块", "waxed_oxidized_copper": "涂蜡的氧化铜块",
 }
 _INSTRUMENTS = {
     "harp": "竖琴", "bass": "贝斯", "basedrum": "底鼓", "snare": "小军鼓",
@@ -46,10 +48,14 @@ _INSTRUMENTS = {
     "chime": "风铃", "xylophone": "木琴", "iron_xylophone": "铁木琴",
     "cow_bell": "牛铃", "didgeridoo": "迪吉里杜管", "bit": "比特",
     "banjo": "班卓琴", "pling": "电钢琴",
+    "copper_horn": "小号", "copper_horn_exposed": "小号（斑驳）",
+    "copper_horn_weathered": "小号（锈蚀）", "copper_horn_oxidized": "小号（氧化）",
 }
 _COLORS = {
     "iron_block": "#c5c9ca", "gold_block": "#ecd346", "emerald_block": "#3dce80",
     "diamond_block": "#53cfd1", "copper_block": "#bb7353", "dirt": "#906347",
+    "waxed_copper_block": "#bd7655", "waxed_exposed_copper": "#6c9b85",
+    "waxed_weathered_copper": "#478f89", "waxed_oxidized_copper": "#4f9e84",
     "grass_block": "#8b6646", "stone": "#929494", "cobblestone": "#878b88",
     "sand": "#dfd29b", "red_sand": "#bf713d", "glass": "#a4d9e4",
     "white_wool": "#e7e5df", "clay": "#9fa9bc", "packed_ice": "#87b3e2",
@@ -148,7 +154,9 @@ def _texture(material: str, normal: tuple[int, int, int]) -> QImage:
             p.setPen(QPen(QColor(235, 65, 80, 190), 2))
             p.drawEllipse(3, 3, 10, 10)
             p.drawLine(4, 12, 12, 4)
-    elif material in {"iron_block", "gold_block", "emerald_block", "diamond_block", "quartz_block"}:
+    elif material in {"iron_block", "gold_block", "emerald_block", "diamond_block", "quartz_block",
+                      "waxed_copper_block", "waxed_exposed_copper", "waxed_weathered_copper",
+                      "waxed_oxidized_copper"}:
         p.fillRect(0, 0, 16, 1, light)
         p.fillRect(0, 0, 1, 16, light)
         p.fillRect(1, 14, 14, 1, dark)

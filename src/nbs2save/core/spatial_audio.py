@@ -322,6 +322,7 @@ def decode_audio_sample(path, sample_rate=44100, *, cancel=None) -> np.ndarray:
 _SOUND_NAMES = (
     "harp", "bass", "bd", "snare", "hat", "guitar", "flute", "bell",
     "icechime", "xylobone", "iron_xylophone", "cow_bell", "didgeridoo", "bit", "banjo", "pling",
+    "trumpet", "trumpet_exposed", "trumpet_weathered", "trumpet_oxidized",
 )
 
 
@@ -349,7 +350,7 @@ def _sample_path(instrument, config, *, custom=False):
 
 def _synthetic_sample(instrument, sample_rate):
     """Small distinct reference timbres; never represented as original assets."""
-    duration = 1.2 if instrument in (7, 8, 10, 11, 15) else .75
+    duration = 1.2 if instrument in (7, 8, 10, 11, 15, 16, 17, 18, 19) else .75
     t = np.arange(round(duration * sample_rate), dtype=np.float64) / sample_rate
     octave = {1: -24, 6: 12, 7: 24, 8: 24, 9: 24, 11: 12, 12: -24}.get(instrument, 0)
     f = 440 * 2 ** ((45 + 21 + octave - 69) / 12)  # Minecraft note=12.
@@ -362,6 +363,11 @@ def _synthetic_sample(instrument, sample_rate):
             value = (.65 * noise + .35 * np.sin(phase * .48)) * np.exp(-18 * t)
         else:
             value = (noise - np.roll(noise, 1)) * .4 * np.exp(-30 * t)
+    elif 16 <= instrument <= 19:
+        brightness = (0.72, 0.68, 0.62, 0.56)[instrument - 16]
+        value = sum(np.sin(phase * harmonic) * brightness ** (harmonic - 1) / harmonic
+                    for harmonic in range(1, 9))
+        value *= (1 - np.exp(-55 * t)) * np.exp(-2.5 * t)
     elif instrument in (7, 8, 10, 11):
         value = sum(np.sin(phase * ratio) * gain * np.exp(-decay * t)
                     for ratio, gain, decay in [(1, .55, 3), (2.76, .28, 7), (5.4, .14, 12)])

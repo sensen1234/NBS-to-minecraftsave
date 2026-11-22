@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .custom_instruments import validate_custom_instruments
+from .constants import VANILLA_INSTRUMENT_COUNT
 
 
 @dataclass(frozen=True)
@@ -57,8 +58,13 @@ def check_creation(song, groups, config):
         instruments = []
     configured = {item["nbs_id"] for item in instruments}
     used = {note.instrument for note in selected}
-    default_count = getattr(song.header, "default_instruments", 16)
-    undefined = sorted(i for i in used if i >= default_count and i not in configured)
+    default_count = max(getattr(song.header, "default_instruments", 16), VANILLA_INSTRUMENT_COUNT)
+    custom_start = int(getattr(song.header, "default_instruments", 16))
+    declared_custom = {custom_start + instrument.id for instrument in song.instruments}
+    undefined = sorted(
+        i for i in used
+        if (i >= default_count or i in declared_custom) and i not in configured
+    )
     if undefined:
         issues.append(CreationIssue("warning", "自定义乐器尚未配置", "NBS ID " + "、".join(map(str, undefined)) + " 会回退到默认音色。请在音色页导入并关联 OGG。"))
     for item in instruments:

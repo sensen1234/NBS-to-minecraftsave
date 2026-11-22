@@ -37,7 +37,7 @@ def build_wiki_content(el):
     )
     el.add_paragraph("3D 预览复用真实导出位置，材质为示意，不模拟红石运行。试听按最终音符盒位置计算距离衰减、双耳时差和方向；推荐使用耳机。未提供本地 Minecraft 采样时，原版音色使用合成参考声音。它用于空间布局参考，不能完全替代游戏内验收。")
     el.add_heading(3, "自定义音色与 NoteBetter 安装")
-    el.add_paragraph("NBS ID 0–15 可覆盖原版音色，16 起通常为自定义乐器。每种音色使用独立下垫块，避免同一底座触发多个映射。采样原音键采用 NBS key，默认 45；当前结构音域为 key 33–57，超出时沿用 note=0 的处理。")
+    el.add_paragraph("NBS ID 0–19 为内置音色，旧项目中的自定义映射仍可覆盖这些编号；新自定义音色从 20 起分配。每种音色使用独立下垫块，避免同一底座触发多个映射。采样原音键采用 NBS key，默认 45；当前结构音域为 key 33–57，超出时沿用 note=0 的处理。")
     el.add_paragraph("导出的外层 ZIP 是安装包，包含 `config/notebetterfabric.json`、`resourcepacks` 下的内层音效包 ZIP 和安装说明。每位听众需安装兼容的 NoteBetter Fabric，将映射配置放入客户端 `config`（已有配置请合并 `mappings`），将内层 ZIP 放入 `resourcepacks` 并启用，然后重启游戏。模组按底座方块匹配，会影响使用该底座的全部音符盒。")
     el.add_heading(3, "项目与外观快捷操作")
     el.add_table(
@@ -227,12 +227,12 @@ def build_wiki_content(el):
     el.add_heading(4, "配置文件位置")
     el.add_paragraph("`src/nbs2save/core/config.py`")
     el.add_heading(4, "全局生成配置 (`GENERATE_CONFIG`)")
-    el.add_code_block("python", "GENERATE_CONFIG = {\n    # 指定生成的 schematic 文件的 Minecraft 版本\n    # 仅在输出格式为 schematic 时生效\n    # 可选值参考 mcschematic.Version 枚举\n    'data_version': Version.JE_1_21_4,\n\n    # 指定要转换的 NBS 文件路径\n    'input_file': 'test.nbs',\n\n    # 指定输出格式类型\n    # 可选值：'schematic' 或 'mcfunction'\n    'type': 'schematic',\n\n    # 指定输出文件的名称 (不包含扩展名)\n    # 程序会自动添加相应的扩展名\n    'output_file': 'test'\n}")
+    el.add_code_block("python", "GENERATE_CONFIG = {\n    # 指定生成的 schematic 文件的 Minecraft 版本\n    # 仅在输出格式为 schematic 时生效\n    # 可选版本见 MINECRAFT_VERSIONS\n    'data_version': Version.JE_1_21_4,\n\n    # 指定要转换的 NBS 文件路径\n    'input_file': 'test.nbs',\n\n    # 指定输出格式类型\n    # 可选值：'schematic' 或 'mcfunction'\n    'type': 'schematic',\n\n    # 指定输出文件的名称 (不包含扩展名)\n    # 程序会自动添加相应的扩展名\n    'output_file': 'test'\n}")
     el.add_paragraph("**参数详解**：")
     el.add_table(
         headers=["参数名", "数据类型", "说明", "示例值"],
         rows=[
-            ["`data_version`", "`Version`", "目标 Minecraft 版本，影响 schematic 文件的兼容性", "`Version.JE_1_21_4`"],
+            ["`data_version`", "Minecraft 版本对象", "目标 Minecraft 版本，影响 schematic 文件的兼容性", "`Version.JE_1_21_4`"],
             ["`input_file`", "`str`", "NBS 文件的完整路径 (相对或绝对路径均可)", "`'test.nbs'`"],
             ["`type`", "`str`", "输出格式类型", "`'schematic'` 或 `'mcfunction'`"],
             ["`output_file`", "`str`", "输出文件名 (不包含扩展名)", "`'test'`"],
@@ -278,6 +278,10 @@ def build_wiki_content(el):
             ["`13`", "比特", "`bit`"],
             ["`14`", "班卓琴", "`banjo`"],
             ["`15`", "电钢琴", "`pling`"],
+            ["`16`", "小号", "`copper_horn`"],
+            ["`17`", "小号（斑驳）", "`copper_horn_exposed`"],
+            ["`18`", "小号（锈蚀）", "`copper_horn_weathered`"],
+            ["`19`", "小号（氧化）", "`copper_horn_oxidized`"],
         ],
     )
     el.add_heading(4, "乐器方块映射 (`INSTRUMENT_BLOCK_MAPPING`)")
@@ -301,6 +305,10 @@ def build_wiki_content(el):
             ["`13`", "比特", "`minecraft:emerald_block`"],
             ["`14`", "班卓琴", "`minecraft:hay_block`"],
             ["`15`", "电钢琴", "`minecraft:glowstone`"],
+            ["`16`", "小号", "`minecraft:waxed_copper_block`"],
+            ["`17`", "小号（斑驳）", "`minecraft:waxed_exposed_copper`"],
+            ["`18`", "小号（锈蚀）", "`minecraft:waxed_weathered_copper`"],
+            ["`19`", "小号（氧化）", "`minecraft:waxed_oxidized_copper`"],
         ],
     )
     el.add_heading(4, "音高映射 (`NOTEPITCH_MAPPING`)")
@@ -550,7 +558,7 @@ def build_wiki_content(el):
     )
     el.add_paragraph("**解决方法**：")
     el.add_numbered_list([
-        "检查 NBS 文件使用的乐器是否在支持范围内 (ID `0-15`)",
+        "检查 NBS 乐器 ID 是否在支持范围内 (ID `0-19`)",
         "确保音符的 NBS key 在 `33-57` 范围内",
         "尝试在 NBS 编辑器中调整不兼容的音符",
     ])

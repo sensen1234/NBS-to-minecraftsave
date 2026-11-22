@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pynbs
 
+from .constants import VANILLA_INSTRUMENT_COUNT
+
 
 @dataclass(frozen=True)
 class CustomInstrumentUsage:
@@ -36,8 +38,9 @@ class SongInsights:
 def analyze_song(song, filename="") -> SongInsights:
     """Include the final occupied tick and header silence, excluding sound tails.
 
-    Custom IDs start at NBS default_instruments. The exporter currently maps
-    only keys 33–57 to its 25 pitches. Input notes and settings are unmodified.
+    Custom IDs start after the built-in instruments and the NBS header's default
+    count. Old songs can still identify custom IDs through their instrument names.
+    Input notes and settings are unmodified.
     """
     tempo = float(song.header.tempo)
     if not math.isfinite(tempo) or tempo <= 0:
@@ -45,10 +48,11 @@ def analyze_song(song, filename="") -> SongInsights:
     notes = song.notes
     length_ticks = max(int(song.header.song_length), max((note.tick + 1 for note in notes), default=0), 0)
     first_custom = int(getattr(song.header, "default_instruments", 16))
+    custom_threshold = max(first_custom, VANILLA_INSTRUMENT_COUNT)
     names = {first_custom + instrument.id: instrument.name for instrument in song.instruments}
     custom_counts = {}
     for note in notes:
-        if note.instrument >= first_custom:
+        if note.instrument >= custom_threshold or note.instrument in names:
             custom_counts[note.instrument] = custom_counts.get(note.instrument, 0) + 1
     custom_usage = tuple(CustomInstrumentUsage(
         instrument_id, names.get(instrument_id) or f"自定义乐器 #{instrument_id}", count,
