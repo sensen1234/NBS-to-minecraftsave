@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
     QFrame,
     QGraphicsTextItem,
+    QGraphicsSceneMouseEvent,
     QStackedWidget,
     QAbstractItemView,
     QHeaderView,
@@ -145,7 +146,7 @@ class CrosshairItem(QGraphicsItem):
     def boundingRect(self):
         return QRectF(-self._size, -self._size, self._size * 2, self._size * 2)
 
-    def paint(self, painter, option, widget):
+    def paint(self, painter: QPainter, option, widget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         pen = QPen(self._color, 1.5, Qt.PenStyle.DashLine)
         painter.setPen(pen)
@@ -232,10 +233,11 @@ class TrackGroupItem(QGraphicsRectItem):
                 self.setPos(float(x), float(y))
 
     def itemChange(self, change, value):
+        scene = self.scene()
         if (
             change == QGraphicsItem.GraphicsItemChange.ItemPositionChange
         ):
-            if self.scene() and self.scene().mouseGrabberItem() == self:
+            if scene is not None and scene.mouseGrabberItem() == self:
                 value = QPointF(
                     max(-30000000, min(30000000, round(value.x()))),
                     max(-320, min(64, round(value.y()))),
@@ -248,11 +250,12 @@ class TrackGroupItem(QGraphicsRectItem):
                 value = QPointF(round(value.x()), round(value.y()))
         return super().itemChange(change, value)
 
-    def mousePressEvent(self, event):
-        if self.scene():
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
+        scene = self.scene()
+        if scene is not None:
             # Editing is per group. Qt's Ctrl multiselection would otherwise
             # move additional points without sending their coordinate callbacks.
-            for item in self.scene().selectedItems():
+            for item in scene.selectedItems():
                 if item is not self:
                     item.setSelected(False)
         if self.on_select_callback:
@@ -308,14 +311,14 @@ class GridScene(QGraphicsScene):
             self._axis_label_color_y = QColor(50, 50, 180, 200)
         self.setBackgroundBrush(QBrush(self._bg))
 
-    def drawBackground(self, painter, rect):
+    def drawBackground(self, painter: QPainter, rect):
         super().drawBackground(painter, rect)
 
         left = int(rect.left()) - (int(rect.left()) % self.grid_size)
         top = int(rect.top()) - (int(rect.top()) % self.grid_size)
 
         # 细网格
-        lines = []
+        lines: list[QPointF] = []
         for x in range(left, int(rect.right()), self.grid_size):
             lines.append(QPointF(x, rect.top()))
             lines.append(QPointF(x, rect.bottom()))
@@ -326,10 +329,11 @@ class GridScene(QGraphicsScene):
         pen = QPen(self._grid_minor)
         pen.setWidth(0)
         painter.setPen(pen)
-        painter.drawLines(lines)
+        # 类型桩把参数声明为 sip.array[QPointF]，但运行时同样接受普通序列。
+        painter.drawLines(lines)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
         # 大网格 (每50格)
-        big_grid_lines = []
+        big_grid_lines: list[QPointF] = []
         big_step = 50
         big_left = int(rect.left()) - (int(rect.left()) % big_step)
         big_top = int(rect.top()) - (int(rect.top()) % big_step)
@@ -344,7 +348,7 @@ class GridScene(QGraphicsScene):
         pen_big = QPen(self._grid_major)
         pen_big.setWidth(1)
         painter.setPen(pen_big)
-        painter.drawLines(big_grid_lines)
+        painter.drawLines(big_grid_lines)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
         # 轴线
         painter.setPen(QPen(self._axis_x, 2))
@@ -352,7 +356,7 @@ class GridScene(QGraphicsScene):
         painter.setPen(QPen(self._axis_y, 2))
         painter.drawLine(0, int(rect.top()), 0, int(rect.bottom()))
 
-    def drawForeground(self, painter, rect):
+    def drawForeground(self, painter: QPainter, rect):
         super().drawForeground(painter, rect)
         if not self._show_labels:
             return
@@ -503,16 +507,19 @@ class LayoutToolsDialog(QDialog):
         self.table = TableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["组", "当前起点 · X, Y, Z", "预览起点 · X, Y, Z"])
-        self.table.verticalHeader().hide()
+        vertical_header = self.table.verticalHeader()
+        if vertical_header is not None:
+            vertical_header.hide()
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.table.setWordWrap(False)
         self.table.setBorderVisible(True)
         self.table.setBorderRadius(8)
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        if header is not None:
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         layout.addWidget(self.table, 1)
         self.summary = CaptionLabel("")
         self.summary.setWordWrap(True)
@@ -620,9 +627,9 @@ class CoordinatePickerDialog(QDialog):
         target_data = self.all_groups.get(target_group_id, {})
         coords = target_data.get("base_coords", ("0", "64", "0"))
         try:
-            self.x, self.y, self.z = int(coords[0]), int(coords[1]), int(coords[2])
+            self._x, self._y, self._z = int(coords[0]), int(coords[1]), int(coords[2])
         except Exception:
-            self.x, self.y, self.z = 0, 64, 0
+            self._x, self._y, self._z = 0, 64, 0
 
         self._build_ui()
         self._refresh_group_selector()
@@ -636,7 +643,9 @@ class CoordinatePickerDialog(QDialog):
         # Coordinate inputs must use the same complete-layout history as the canvas.
         for spin in (self.spin_x, self.spin_y, self.spin_z):
             spin.installEventFilter(self)
-            spin.lineEdit().installEventFilter(self)
+            editor = spin.lineEdit()
+            if editor is not None:
+                editor.installEventFilter(self)
         QTimer.singleShot(50, self._fade_in_entry)
 
     def _fade_in_entry(self):
@@ -681,9 +690,9 @@ class CoordinatePickerDialog(QDialog):
         coord_grid.setContentsMargins(0, 0, 0, 0)
         coord_grid.setSpacing(8)
 
-        self.spin_x = self._make_spin("X", "左右", (-30000000, 30000000), self.x)
-        self.spin_y = self._make_spin("Y", "高度", (-64, 320), self.y)
-        self.spin_z = self._make_spin("Z", "深度", (-30000000, 30000000), self.z)
+        self.spin_x = self._make_spin("X", "左右", (-30000000, 30000000), self._x)
+        self.spin_y = self._make_spin("Y", "高度", (-64, 320), self._y)
+        self.spin_z = self._make_spin("Z", "深度", (-30000000, 30000000), self._z)
 
         for row, (spin, label, tip) in enumerate([
             (self.spin_x, "X", "东 +"),
@@ -791,7 +800,9 @@ class CoordinatePickerDialog(QDialog):
         ctrl.setAutoFillBackground(False)
         ctrl_scroll.setWidgetResizable(True)
         ctrl_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        ctrl_scroll.viewport().setAutoFillBackground(False)
+        ctrl_viewport = ctrl_scroll.viewport()
+        if ctrl_viewport is not None:
+            ctrl_viewport.setAutoFillBackground(False)
         ctrl_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         main.addWidget(ctrl_scroll)
 
@@ -860,7 +871,9 @@ class CoordinatePickerDialog(QDialog):
         self.listen_panel_scroll.setMinimumHeight(100)
         self.listen_panel_scroll.setMaximumHeight(280)
         self.listen_panel_host.setAutoFillBackground(False)
-        self.listen_panel_scroll.viewport().setAutoFillBackground(False)
+        listen_viewport = self.listen_panel_scroll.viewport()
+        if listen_viewport is not None:
+            listen_viewport.setAutoFillBackground(False)
         vl.addWidget(self.listen_panel_scroll)
         main.addWidget(vc, 1)
         outer.addLayout(main)
@@ -875,7 +888,7 @@ class CoordinatePickerDialog(QDialog):
         footer_info = QVBoxLayout()
         footer_info.setSpacing(3)
         self.status_coord = CaptionLabel(
-            f"X: {self.x}  |  Y: {self.y}  |  Z: {self.z}"
+            f"X: {self._x}  |  Y: {self._y}  |  Z: {self._z}"
         )
         font = self.status_coord.font()
         font.setWeight(QFont.Weight.DemiBold)
@@ -1325,7 +1338,9 @@ class CoordinatePickerDialog(QDialog):
         )
         self._preview_worker = worker
         worker.signals.finished.connect(self._preview_finished)
-        QThreadPool.globalInstance().start(worker)
+        pool = QThreadPool.globalInstance()
+        assert pool is not None  # 运行期始终存在全局线程池
+        pool.start(worker)
 
     def _preview_finished(self, revision, result, error):
         self._preview_busy = False

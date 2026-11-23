@@ -2,7 +2,7 @@ from PyQt6.QtCore import (
     QPropertyAnimation,
     QEasingCurve,
     QObject,
-    pyqtProperty,
+    pyqtProperty,  # type: ignore[attr-defined]  # PyQt6 的类型桩未声明该符号
     QPointF,
     QParallelAnimationGroup,
 )
@@ -38,7 +38,7 @@ class AnimationUtils:
             # 这里的 scale 预留给子控件使用
             pass
 
-        widget._fade_in_anim = group
+        setattr(widget, "_fade_in_anim", group)
 
         # Keep the group alive until its owning widget is destroyed. Clearing
         # the last Python reference inside finished can destroy the group
@@ -53,13 +53,15 @@ class GraphicsItemAnimWrapper(QObject):
         super().__init__()
         self.item = item
 
-    @pyqtProperty(QPointF)
-    def pos(self):
+    def _get_pos(self) -> QPointF:
         return self.item.pos()
 
-    @pos.setter
-    def pos(self, value):
+    def _set_pos(self, value: QPointF) -> None:
         self.item.setPos(value)
+
+    # 属性名必须是 "pos"（QPropertyAnimation 按名字查找），
+    # 使用显式 fget/fset 而不是 @pos.setter，避免被类型检查判为同名方法重复声明。
+    pos = pyqtProperty(QPointF, _get_pos, _set_pos)
 
 
 class ColorAnimWrapper(QObject):
@@ -68,16 +70,16 @@ class ColorAnimWrapper(QObject):
     需要配合 paintEvent 使用
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent: QWidget):
         super().__init__(parent)
         self._color = QColor(0, 0, 0, 0)
         self.widget = parent
 
-    @pyqtProperty(QColor)
-    def color(self):
+    def _get_color(self) -> QColor:
         return self._color
 
-    @color.setter
-    def color(self, value):
+    def _set_color(self, value: QColor) -> None:
         self._color = value
         self.widget.update()  # 触发重绘
+
+    color = pyqtProperty(QColor, _get_color, _set_color)
