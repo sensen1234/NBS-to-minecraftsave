@@ -1,0 +1,14 @@
+{
+  "typeCheckingMode": "basic",
+  "include": ["src"],
+  "exclude": ["**/.venv", "**/build", "**/dist", "**/__pycache__"],
+  "reportMissingTypeStubs": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownParameterType": "none",
+  "reportUnknownLambdaType": "none",
+  "reportUnusedCallResult": "none",
+  "reportImplicitStringConcatenation": "none",
+  "reportUnannotatedClassAttribute": "none"
+}

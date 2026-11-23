@@ -6,3 +6,41 @@ readme = "README.md"
 license-files = ["LICENSE"]
 requires-python = ">=3.10, <3.14"
 dependencies = ["mcschematic~=11.4", "pynbs~=1.1", "pyqt6~=6.11", "PyQt6-Fluent-Widgets~=1.5", "markdown~=3.10", "numpy>=2.2,<3"]
+
+
+# ── 静态类型检查 (basedpyright / pyright) ──
+# qfluentwidgets 既无 py.typed 也无 .pyi 存根，其导出全部是 Unknown；
+# 若沿用 basedpyright 默认的 recommended 严格度，会产生大量无法在本仓库修复的噪音。
+[tool.basedpyright]
+typeCheckingMode = "basic"
+include = ["src"]
+exclude = ["**/.venv", "**/build", "**/dist", "**/__pycache__"]
+
+# Unknown 类型噪音：主要来自 qfluentwidgets（无存根）与部分 PyQt6 存根签名
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownParameterType = "none"
+reportUnknownLambdaType = "none"
+
+# 风格类检查：Qt 代码中 addWidget/setValue/connect 的返回值基本无意义
+reportUnusedCallResult = "none"
+reportImplicitStringConcatenation = "none"
+reportUnannotatedClassAttribute = "none"
+
+[tool.pyright]
+typeCheckingMode = "basic"
+include = ["src"]
+exclude = ["**/.venv", "**/build", "**/dist", "**/__pycache__"]
+
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownParameterType = "none"
+reportUnknownLambdaType = "none"
+
+reportUnusedCallResult = "none"
+reportImplicitStringConcatenation = "none"
+reportUnannotatedClassAttribute = "none"

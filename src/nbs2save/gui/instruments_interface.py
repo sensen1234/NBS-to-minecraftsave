@@ -2,10 +2,12 @@
 
 from copy import deepcopy
 from pathlib import Path
+from typing import Any, Protocol, cast
 import re
 
 import pynbs
 from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QCloseEvent, QHideEvent
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QHeaderView, QTableWidgetItem,
@@ -17,7 +19,22 @@ from qfluentwidgets import (
     CheckBox, InfoBar, InfoBarPosition,
 )
 from ..core.constants import VANILLA_INSTRUMENT_COUNT
-from .studio_style import PageHeader, apply_page_style, muted_label
+from .studio_style import (
+    PageHeader, apply_page_style, fit_table_height, muted_label, table_headers,
+)
+
+class _HomeInterfaceLike(Protocol):
+    """The slice of the home page this page reads from."""
+
+    def getVersion(self) -> Any: ...
+    def getInputFile(self) -> str: ...
+
+
+class _MainWindowLike(Protocol):
+    """The slice of the main window this page reads from."""
+
+    config: dict[str, Any]
+    homeInterface: _HomeInterfaceLike
 
 
 class InstrumentsInterface(ScrollArea):
@@ -33,10 +50,10 @@ class InstrumentsInterface(ScrollArea):
         "prismarine", "dark_prismarine", "purpur_block", "purpur_pillar",
     )
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("instrumentsInterface")
-        self._main_window = parent
+        self._main_window = cast("_MainWindowLike | None", parent)
         self.scrollWidget = QWidget()
         layout = QVBoxLayout(self.scrollWidget)
         layout.setContentsMargins(36, 20, 36, 36)
@@ -86,10 +103,9 @@ class InstrumentsInterface(ScrollArea):
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.table.setWordWrap(False)
         self.table.setFrameShape(QFrame.Shape.NoFrame)
-        self.table.verticalHeader().hide()
-        self.table.verticalHeader().setDefaultSectionSize(40)
-        self.table.setMinimumHeight(260)
-        header = self.table.horizontalHeader()
+        vertical_header, header = table_headers(self.table)
+        vertical_header.hide()
+        vertical_header.setDefaultSectionSize(40)
         header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setMinimumSectionSize(65)
         self._column_minima = (58, 100, 135, 150, 72, 135, 58)
@@ -97,8 +113,13 @@ class InstrumentsInterface(ScrollArea):
             self.table.setColumnWidth(column, width)
         header.setStretchLastSection(False)
         header.sectionResized.connect(self._keep_column_readable)
+        table_model = self.table.model()
+        assert table_model is not None
+        table_model.rowsInserted.connect(lambda *_: fit_table_height(self.table))
+        table_model.rowsRemoved.connect(lambda *_: fit_table_height(self.table))
+        fit_table_height(self.table)
         table_layout.addWidget(self.table)
-        layout.addWidget(table_card, 1)
+        layout.addWidget(table_card)
         detail = muted_label(CaptionLabel(
             "声音 ID 是资源包事件名；原音键是采样的实际 NBS 键值（默认 45）。OGG 请使用单声道 Vorbis，"
             "文件路径需持续有效。下垫块必须唯一，否则 NoteBetter 无法区分音色。"
@@ -180,6 +201,12 @@ class InstrumentsInterface(ScrollArea):
                 combo.currentIndexChanged.connect(self._update_pack_format)
         self._selection_changed()
 
+    @property
+    def _window(self) -> "_MainWindowLike":
+        """The owning main window; always set when the page is constructed by it."""
+        assert self._main_window is not None, "自定义音色页需要主窗口才能读写配置"
+        return self._main_window
+
     def _keep_column_readable(self, column, _old, width):
         minimum = self._column_minima[column]
         if width < minimum:
@@ -253,13 +280,15 @@ class InstrumentsInterface(ScrollArea):
             self._sample_output.deleteLater()
             self._sample_output = None
 
-    def hideEvent(self, event):
+    # PyQt6 存根把 QWidget.hideEvent/closeEvent 的形参命名为 a0，沿用该名称
+    # 才能通过 reportIncompatibleMethodOverride 检查。
+    def hideEvent(self, a0: QHideEvent | None):
         self.stop_sample_preview()
-        super().hideEvent(event)
+        super().hideEvent(a0)
 
-    def closeEvent(self, event):
+    def closeEvent(self, a0: QCloseEvent | None):
         self.shutdown()
-        super().closeEvent(event)
+        super().closeEvent(a0)
 
     def _update_pack_format(self, *_):
         if not self.auto_format.isChecked():
@@ -267,14 +296,14 @@ class InstrumentsInterface(ScrollArea):
         from ..core.custom_instruments import resource_pack_format
 
         try:
-            self.pack_format.setValue(resource_pack_format(self._main_window.homeInterface.getVersion()))
+            self.pack_format.setValue(resource_pack_format(self._window.homeInterface.getVersion()))
             self.pack_format.setToolTip("根据基础设置中的目标游戏版本自动选择")
         except ValueError as exc:
             self.pack_format.setToolTip(str(exc))
 
     def load_from_config(self):
         self.stop_sample_preview()
-        config = self._main_window.config
+        config = self._window.config
         self.table.setRowCount(0)
         for entry in config.get("custom_instruments", []):
             self._append(entry)
@@ -297,6 +326,15 @@ class InstrumentsInterface(ScrollArea):
         # Resolve the current row at click time, since earlier rows may be deleted.
         browse.clicked.connect(lambda _, button=browse: self._browse_sample(button))
         self.table.setCellWidget(row, 6, browse)
+
+    def _row_values(self, row, *, strip=False):
+        """Read one table row as text, using "" for cells that were never set."""
+        values = {}
+        for column, field in enumerate(self.FIELDS):
+            item = self.table.item(row, column)
+            text = item.text() if item is not None else ""
+            values[field] = text.strip() if strip else text
+        return values
 
     def _used_values(self, column):
         values = set()
@@ -357,11 +395,9 @@ class InstrumentsInterface(ScrollArea):
         except ValueError as exc:
             self._message("无法复制", str(exc), True)
             return
-        entry = {field: self.table.item(rows[0], column).text()
-                 if self.table.item(rows[0], column) else ""
-                 for column, field in enumerate(self.FIELDS)}
+        entry = self._row_values(rows[0])
         support = self._next_support()
-        entry.update(nbs_id=instrument_id, name=entry["name"] + " 副本",
+        entry.update(nbs_id=str(instrument_id), name=entry["name"] + " 副本",
                      base_block=support, sound_id=self._next_sound_id(instrument_id))
         self._append(entry)
         self.table.selectRow(self.table.rowCount() - 1)
@@ -388,13 +424,13 @@ class InstrumentsInterface(ScrollArea):
     def collect_instruments(self):
         result = []
         for row in range(self.table.rowCount()):
-            entry = {
-                field: self.table.item(row, column).text().strip() if self.table.item(row, column) else ""
-                for column, field in enumerate(self.FIELDS)
-            }
+            values = self._row_values(row, strip=True)
             try:
-                entry["nbs_id"] = int(entry["nbs_id"])
-                entry["root_key"] = int(entry["root_key"])
+                entry = {
+                    **values,
+                    "nbs_id": int(values["nbs_id"]),
+                    "root_key": int(values["root_key"]),
+                }
             except ValueError as exc:
                 raise ValueError(f"音色表第 {row + 1} 行：NBS ID 和采样原音键须为整数") from exc
             result.append(entry)
@@ -406,8 +442,8 @@ class InstrumentsInterface(ScrollArea):
 
         entries = self.collect_instruments()
         entries = validate_custom_instruments(entries, require_files=False)
-        self._main_window.config["custom_instruments"] = deepcopy(entries)
-        self._main_window.config["notebetter_pack_format"] = (
+        self._window.config["custom_instruments"] = deepcopy(entries)
+        self._window.config["notebetter_pack_format"] = (
             None if self.auto_format.isChecked() else self.pack_format.value()
         )
         return entries
@@ -427,7 +463,7 @@ class InstrumentsInterface(ScrollArea):
 
     def import_from_nbs(self):
         try:
-            path = Path(self._main_window.homeInterface.getInputFile())
+            path = Path(self._window.homeInterface.getInputFile())
             if not path.is_file():
                 raise ValueError("请先在基础设置中选择 NBS 文件。")
             song = pynbs.read(str(path))
@@ -459,7 +495,7 @@ class InstrumentsInterface(ScrollArea):
         self.stop_sample_preview()
         try:
             self.save_to_config()
-            if not self._main_window.config.get("custom_instruments"):
+            if not self._window.config.get("custom_instruments"):
                 raise ValueError("请先添加至少一个自定义音色。")
             path, _ = QFileDialog.getSaveFileName(self, "导出 NoteBetter 音效包", "NoteBetter-Sounds.zip", "ZIP (*.zip)")
             if not path:
@@ -469,9 +505,9 @@ class InstrumentsInterface(ScrollArea):
             from ..core.custom_instruments import export_notebetter_pack
 
             export_notebetter_pack(
-                path, self._main_window.config,
+                path, self._window.config,
                 pack_format=None if self.auto_format.isChecked() else self.pack_format.value(),
-                minecraft_version=self._main_window.homeInterface.getVersion(),
+                minecraft_version=self._window.homeInterface.getVersion(),
             )
             self._message("导出完成", f"已导出 {Path(path).name}，安装方式见包内说明。")
         except Exception as exc:

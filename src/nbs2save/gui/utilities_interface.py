@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget
 from qfluentwidgets import (
     ScrollArea,
     CardWidget,
-    TitleLabel,
     SubtitleLabel,
     StrongBodyLabel,
     BodyLabel,
@@ -131,9 +130,10 @@ class UtilitiesInterface(ScrollArea):
         table.setRowCount(len(_RAW_DATA))
         table.setHorizontalHeaderLabels(["音量", "玩家可听距离"])
 
+        # PyQt6 存根把 header 标为 Optional，QTableWidget 实际始终返回有效实例
         hv = table.horizontalHeader()
-        hv.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        hv.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        hv.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  # pyright: ignore[reportOptionalMemberAccess]
+        hv.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # pyright: ignore[reportOptionalMemberAccess]
 
         for row, (vol, dist) in enumerate(_RAW_DATA):
             volItem = QTableWidgetItem(f"{vol}%")
@@ -143,7 +143,7 @@ class UtilitiesInterface(ScrollArea):
             table.setItem(row, 0, volItem)
             table.setItem(row, 1, distItem)
 
-        table.verticalHeader().setVisible(False)
+        table.verticalHeader().setVisible(False)  # pyright: ignore[reportOptionalMemberAccess]
         table.setEditTriggers(TableWidget.EditTrigger.NoEditTriggers)
         table.setSelectionMode(TableWidget.SelectionMode.NoSelection)
         table.setFixedHeight(420)

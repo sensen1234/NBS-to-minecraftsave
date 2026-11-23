@@ -33,8 +33,8 @@ class LogInterface(QWidget):
 
         header = PageHeader("运行记录", "查看转换进度，复制日志以便排查问题。", "ACTIVITY", self)
         self.titleLabel = header.titleLabel
-        headerLayout.addWidget(header)
-        headerLayout.addStretch(1)
+        # 让页头占满剩余宽度，否则描述文字会被右侧按钮挤成窄条
+        headerLayout.addWidget(header, 1)
 
         self.copyBtn = PushButton("复制日志", self)
         self.copyBtn.setIcon(FluentIcon.COPY)

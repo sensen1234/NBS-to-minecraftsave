@@ -187,7 +187,7 @@ class AboutInterface(ScrollArea):
         self._initHeader()
         self._initInfoCards()
         self._initDevelopers()
-        self._initTechStack()
+        #self._initTechStack()
         self._initLinks()
         self._initDisclaimer()
 
@@ -199,9 +199,8 @@ class AboutInterface(ScrollArea):
     def _initHeader(self):
         headerCard = CardWidget(self.scrollWidget)
         headerLayout = QVBoxLayout(headerCard)
-        headerLayout.setContentsMargins(32, 28, 32, 28)
+        headerLayout.setContentsMargins(32, 24, 32, 24)
         headerLayout.setSpacing(8)
-        headerLayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # 应用名
         nameLabel = TitleLabel(APP_NAME, headerCard)
@@ -221,7 +220,6 @@ class AboutInterface(ScrollArea):
         descLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         descLabel.setWordWrap(True)
         muted_label(label_font(descLabel, 13))
-        descLabel.setMinimumHeight(40)
         headerLayout.addWidget(descLabel)
 
         self.vBoxLayout.addWidget(headerCard)

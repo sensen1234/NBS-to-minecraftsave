@@ -41,7 +41,6 @@ from qfluentwidgets import (
     BodyLabel,
     CaptionLabel,
     SpinBox,
-    ComboBox,
     FluentIcon,
     SegmentedWidget,
     isDarkTheme,
@@ -53,6 +52,7 @@ from qfluentwidgets import (
 
 from .animations import AnimationUtils, GraphicsItemAnimWrapper
 from .preview_3d import MinecraftPreviewWidget
+from .studio_style import ChoiceComboBox
 from .layout_tools import LayoutHistory, arrange_along_z, copy_layout, translate_all, validate_layout
 
 
@@ -669,7 +669,7 @@ class CoordinatePickerDialog(QDialog):
         self.group_hint = _muted(CaptionLabel("选择组，或直接点击预览中的方块。"))
         self.group_hint.setWordWrap(True)
         cl.addWidget(self.group_hint)
-        self.group_selector = ComboBox()
+        self.group_selector = ChoiceComboBox()
         self.group_selector.currentIndexChanged.connect(self._on_group_selected)
         cl.addWidget(self.group_selector)
         cl.addSpacing(4)
@@ -728,7 +728,7 @@ class CoordinatePickerDialog(QDialog):
         pc.addLayout(range_row)
         span_row = QHBoxLayout()
         span_row.addWidget(_muted(CaptionLabel("显示长度")))
-        self.preview_span = ComboBox()
+        self.preview_span = ChoiceComboBox()
         self.preview_span.addItems(["16 tick", "32 tick", "64 tick", "128 tick", "256 tick"])
         self.preview_span.setCurrentIndex(2)
         span_row.addWidget(self.preview_span, 1)

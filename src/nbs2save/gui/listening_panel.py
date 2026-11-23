@@ -15,12 +15,12 @@ from PyQt6.QtWidgets import (
 )
 from qfluentwidgets import (
     DoubleSpinBox as QDoubleSpinBox, SpinBox as QSpinBox, PushButton as QPushButton,
-    LineEdit as QLineEdit, ComboBox as QComboBox, BodyLabel as QLabel,
+    LineEdit as QLineEdit, BodyLabel as QLabel,
     CaptionLabel, SubtitleLabel,
 )
 
 from ..core.spatial_audio import RenderCancelled, render_spatial_audio
-from .studio_style import muted_label, label_font
+from .studio_style import ChoiceComboBox as QComboBox, muted_label, label_font
 
 
 class _RenderSignals(QObject):

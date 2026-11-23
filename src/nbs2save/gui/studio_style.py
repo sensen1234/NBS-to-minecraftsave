@@ -3,7 +3,24 @@
 from PyQt6.QtCore import QObject, pyqtSlot
 from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
-from qfluentwidgets import TitleLabel, BodyLabel, CaptionLabel, isDarkTheme, qconfig
+from qfluentwidgets import TitleLabel, BodyLabel, CaptionLabel, ComboBox, isDarkTheme, qconfig
+
+
+class ChoiceComboBox(ComboBox):
+    """下拉框：弹出列表紧贴窗口，避免出现一圈"透明边框"。
+
+    qfluentwidgets 的 RoundMenu 会在列表四周预留透明边距，用于绘制
+    QGraphicsDropShadowEffect 投影；而 Windows 会在弹窗窗口外沿再描一圈边框，
+    于是这段透明边距就显示成悬在列表外的独立边框。这里去掉投影与边距，
+    让弹窗边框与列表自身的边框重合。
+    """
+
+    def _createComboMenu(self):
+        menu = super()._createComboMenu()
+        menu.view.setGraphicsEffect(None)
+        menu.layout().setContentsMargins(0, 0, 0, 0)
+        menu.adjustSize()
+        return menu
 
 
 def label_font(label, size, weight=QFont.Weight.Normal):
@@ -63,3 +80,24 @@ def apply_page_style(page):
         return
     page.scrollWidget.setObjectName(page.objectName() + "Content")
     page._studio_palette = _PagePalette(page)
+
+
+def table_headers(table):
+    """返回表格的（垂直, 水平）表头。
+
+    PyQt6 的类型存根把 ``verticalHeader()`` / ``horizontalHeader()`` 标成
+    ``QHeaderView | None``，但 Qt 保证表格存在时表头始终存在，因此这里用
+    assert 把可空类型收敛掉，避免调用处反复写忽略注释。
+    """
+    vertical, horizontal = table.verticalHeader(), table.horizontalHeader()
+    assert vertical is not None and horizontal is not None
+    return vertical, horizontal
+
+
+def fit_table_height(table, *, min_rows=3, max_height=380):
+    """让表格高度跟随行数，避免少量数据时卡片被拉出大片空白。"""
+    vertical, header = table_headers(table)
+    header_height = max(header.height(), header.sizeHint().height())
+    row_height = table.rowHeight(0) if table.rowCount() else vertical.defaultSectionSize()
+    rows = max(table.rowCount(), min_rows)
+    table.setFixedHeight(min(header_height + rows * row_height + 2 * table.frameWidth(), max_height))

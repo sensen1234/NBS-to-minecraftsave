@@ -4,17 +4,18 @@ from pathlib import Path
 import threading
 
 from PyQt6.QtCore import Qt, QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
+from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QFileDialog, QSizePolicy
 
 from qfluentwidgets import (
     ScrollArea, FluentIcon, SubtitleLabel, CaptionLabel, BodyLabel,
     PrimaryPushButton, PushButton, InfoBar, InfoBarPosition, CardWidget,
-    ProgressBar, LineEdit, ComboBox,
+    ProgressBar, LineEdit,
 )
 
 from ..core.constants import MINECRAFT_VERSIONS
 from ..core.song_insights import read_song_insights
-from .studio_style import PageHeader, apply_page_style, muted_label
+from .studio_style import ChoiceComboBox, PageHeader, apply_page_style, muted_label
 
 
 class _PathCard(CardWidget):
@@ -65,7 +66,7 @@ class _ChoiceField(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
         layout.addWidget(muted_label(CaptionLabel(title, self)))
-        self.comboBox = ComboBox(self)
+        self.comboBox = ChoiceComboBox(self)
         self.comboBox.setMinimumWidth(0)
         self.comboBox.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout.addWidget(self.comboBox)
@@ -125,8 +126,8 @@ class HomeInterface(ScrollArea):
         self.scrollWidget = QWidget()
         self.scrollWidget.setObjectName("scrollWidget")
         self.vBoxLayout = QVBoxLayout(self.scrollWidget)
-        self.vBoxLayout.setContentsMargins(28, 24, 28, 28)
-        self.vBoxLayout.setSpacing(14)
+        self.vBoxLayout.setContentsMargins(36, 20, 36, 24)
+        self.vBoxLayout.setSpacing(12)
         self.setWidget(self.scrollWidget)
         self.setWidgetResizable(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -306,12 +307,18 @@ class HomeInterface(ScrollArea):
         path = self.getInputFile().strip()
         if not path:
             return
+        # PyQt6 的类型标注中 globalInstance() 可能返回 None，先判空再使用线程池
+        pool = QThreadPool.globalInstance()
+        if pool is None:
+            self.analysisStatusLabel.setText("无法启动后台分析，请稍后重试。")
+            return
         worker = _InsightWorker(self._analysis_revision, path)
         worker.signals.finished.connect(self._analysis_done)
         self._analysis_workers[worker.revision] = worker
         self._analysis_busy = True
         self.analysisStatusLabel.setText("正在统计音符、轨道与乐器…")
-        QThreadPool.globalInstance().start(worker)
+        # PyQt6 存根里 start() 含一个参数类型未标注的重载，此处传入的是明确的 QRunnable
+        pool.start(worker)  # pyright: ignore[reportUnknownMemberType]
 
     def _analysis_done(self, revision, path, result, error):
         self._analysis_workers.pop(revision, None)
@@ -355,9 +362,11 @@ class HomeInterface(ScrollArea):
         for worker in self._analysis_workers.values():
             worker.cancel.set()
 
-    def closeEvent(self, event):
+    # 形参名与 PyQt6 存根保持一致（a0），否则会被判定为不兼容覆写；
+    # 项目兼容 Python 3.10/3.11，无法使用 3.12+ 才有的 typing.override。
+    def closeEvent(self, a0: QCloseEvent | None):  # pyright: ignore[reportImplicitOverride]
         self.shutdown()
-        super().closeEvent(event)
+        super().closeEvent(a0)
 
     def getInputFile(self):
         return self.inputFileCard.text()

@@ -10,10 +10,11 @@ from qfluentwidgets import (
     SettingCard,
     PushButton,
     LineEdit,
-    ComboBox,
     SwitchButton,
     IndicatorPosition,
 )
+
+from .studio_style import ChoiceComboBox
 
 
 class FileSelectCard(SettingCard):
@@ -80,7 +81,7 @@ class ComboBoxCard(SettingCard):
 
     def __init__(self, icon, title, content=None, texts=None, parent=None):
         super().__init__(icon, title, content, parent)
-        self.comboBox = ComboBox(self)
+        self.comboBox = ChoiceComboBox(self)
         if texts:
             self.comboBox.addItems(texts)
         self.comboBox.setFixedWidth(220)

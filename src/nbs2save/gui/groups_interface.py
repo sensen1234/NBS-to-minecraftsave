@@ -30,7 +30,7 @@ from qfluentwidgets import (
 )
 
 from .coordinate_picker import CoordinatePickerDialog
-from .studio_style import PageHeader, apply_page_style, muted_label
+from .studio_style import ChoiceComboBox, PageHeader, apply_page_style, muted_label
 from qfluentwidgets import CaptionLabel
 
 
@@ -96,6 +96,10 @@ class GroupsInterface(ScrollArea):
         self.removeBtn = PushButton("删除组", self)
         self.removeBtn.setIcon(FluentIcon.DELETE)
 
+        self.checkBtn = PushButton("创作检查", self)
+        self.checkBtn.setIcon(FluentIcon.COMPLETED)
+        self.checkBtn.setToolTip("检查未分配轨道、音域、缺失采样和输出格式。快捷键 Ctrl+Shift+K。")
+
         self.workbenchBtn = PrimaryPushButton("打开创作工作台", self)
         self.workbenchBtn.setIcon(FluentIcon.TILES)
         self.workbenchBtn.clicked.connect(self.openWorkbench)
@@ -104,16 +108,12 @@ class GroupsInterface(ScrollArea):
         toolbar.addWidget(self.duplicateBtn)
         toolbar.addWidget(self.removeBtn)
         toolbar.addStretch(1)
+        toolbar.addWidget(self.checkBtn)
         toolbar.addWidget(self.workbenchBtn)
 
         self.vBoxLayout.addLayout(toolbar)
-        info = QHBoxLayout()
         self.summaryLabel = muted_label(CaptionLabel("轨道 ID 从 0 开始；多个 ID 用英文逗号分隔。", self))
-        info.addWidget(self.summaryLabel, 1)
-        self.checkBtn = PushButton("创作检查", self)
-        self.checkBtn.setToolTip("检查未分配轨道、音域、缺失采样和输出格式。快捷键 Ctrl+Shift+K。")
-        info.addWidget(self.checkBtn)
-        self.vBoxLayout.addLayout(info)
+        self.vBoxLayout.addWidget(self.summaryLabel)
 
     # ── 表格 ──
 
@@ -144,9 +144,12 @@ class GroupsInterface(ScrollArea):
 
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        header.setMinimumSectionSize(48)
-        for column, width in enumerate((48, 80, 80, 80, 88, 130, 190, 190, 136, 136)):
+        header.setMinimumSectionSize(40)
+        for column, width in enumerate((40, 56, 56, 56, 72, 120, 120, 120, 120, 120)):
             self.table.setColumnWidth(column, width)
+        # 文本列自适应剩余宽度，保证所有列在默认窗口下都完整可见
+        for column in (5, 6, 7):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch)
         header.setStretchLastSection(False)
         tips = {1: "世界坐标 X，正方向为东。", 2: "世界坐标 Y，正方向为上。", 3: "世界坐标 Z，正方向为南。", 5: "对应 NBS 的轨道序号，从 0 开始；例如 0,1,3。", 6: "红石线路的基础方块。音符盒下垫块由乐器或自定义音色决定。", 7: "线路覆盖方块；音符盒上方会留空以便发声。", 8: "阶梯布局需要 Schematic 格式。", 9: "声像模式使用音符 panning；音量模式根据音量调整距离。"}
         for column, tip in tips.items():
@@ -159,7 +162,6 @@ class GroupsInterface(ScrollArea):
             TableWidget.SelectionBehavior.SelectRows
         )
         self.table.setSelectionMode(TableWidget.SelectionMode.SingleSelection)
-        self.table.setMinimumHeight(300)
 
         cardLayout.addWidget(self.table)
         self.vBoxLayout.addWidget(self.tableCard, 1)
@@ -205,7 +207,7 @@ class GroupsInterface(ScrollArea):
                 r, 7, QTableWidgetItem(cfg["block"].get("cover", ""))
             )
             # 生成模式: 下拉框选择
-            combo = ComboBox(self.table)
+            combo = ChoiceComboBox(self.table)
             combo.addItems([label for label, _ in _GEN_MODE_ITEMS])
             cur_mode = cfg.get("generation_mode", "default")
             for idx, (_, val) in enumerate(_GEN_MODE_ITEMS):
@@ -215,7 +217,7 @@ class GroupsInterface(ScrollArea):
             self.table.setCellWidget(r, 8, combo)
 
             # 偏移模式: 下拉框选择
-            off_combo = ComboBox(self.table)
+            off_combo = ChoiceComboBox(self.table)
             off_combo.addItems([label for label, _ in _OFFSET_MODE_ITEMS])
             cur_off = cfg.get("offset_mode", "pan")
             for idx, (_, val) in enumerate(_OFFSET_MODE_ITEMS):
