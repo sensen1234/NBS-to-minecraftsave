@@ -1,6 +1,5 @@
 """
-主窗口 - 基于 MSFluentWindow 的 Fluent Design 架构
-参考 March7thAssistant UI 设计文档实现
+主窗口
 """
 
 import os

@@ -96,7 +96,7 @@ class UtilitiesInterface(ScrollArea):
         self.vBoxLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # 标题
-        header = PageHeader("创作工具", "为布局寻找合适的距离，快速估算听感。", "TOOLS", self.scrollWidget)
+        header = PageHeader("创作工具", "为布局寻找合适的距离，快速估算听感。")
         self.vBoxLayout.addWidget(header)
 
         self._initVolumeTable()
@@ -119,7 +119,7 @@ class UtilitiesInterface(ScrollArea):
         cl.addWidget(title)
 
         note = CaptionLabel(
-            "原版音符盒的音量与距离参考；NoteBetter 自定义声音听距通常为 16 格。",
+            "原版音符盒的音量与距离参考，这里的音量为FL中的音量（音量百分比，其他软件应该也差不多）",
             card,
         )
         muted_label(label_font(note, 12))
@@ -208,8 +208,9 @@ class UtilitiesInterface(ScrollArea):
 
         # 误差提示 (避免与上方参考表数据不一致而误导用户)
         tip = CaptionLabel(
-            "本计算器基于 sqrt 拟合函数估算，与上方参考表数据可能存在 "
-            "±2.5 格 / ±7% 误差。需要精确值请查阅上表。",
+            "本计算器基于 sqrt 拟合函数估算，与上方参考表数据可能存在"
+            "±2.5 格 / ±7% 误差。需要精确值请查阅上表。"
+            "\n得到的格数可能为小数，请自行四舍五入",
             card,
         )
         tip.setWordWrap(True)

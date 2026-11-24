@@ -152,8 +152,8 @@ class HomeInterface(ScrollArea):
 
     def _initTitle(self):
         self.header = PageHeader(
-            "把音乐搭进 Minecraft", "从 NBS 乐谱开始，规划方块布局、试听，再导出音乐结构。",
-            eyebrow="NBS STUDIO", parent=self.scrollWidget,
+            "NBS-to-MinecraftSave", "解放双手，减少无意义的过程",
+            parent=self.scrollWidget,
         )
         self.vBoxLayout.addWidget(self.header)
 
@@ -194,7 +194,7 @@ class HomeInterface(ScrollArea):
             metrics.addLayout(column, 1)
             self.metricLabels[key] = value
         layout.addWidget(self.metricsWidget)
-        self.analysisStatusLabel = muted_label(CaptionLabel("歌曲分析只读取文件，不会调整轨道或乐器配置。", self.insightsCard))
+        self.analysisStatusLabel = muted_label(CaptionLabel("", self.insightsCard))
         self.analysisStatusLabel.setWordWrap(True)
         layout.addWidget(self.analysisStatusLabel)
         self.metricsWidget.hide()
@@ -232,11 +232,11 @@ class HomeInterface(ScrollArea):
         layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(10)
         status = QHBoxLayout()
-        self.statusLabel = muted_label(BodyLabel("准备好后，开始导出你的音乐结构。", self.actionCard))
+        self.statusLabel = muted_label(BodyLabel(self.actionCard))
         self.statusLabel.setWordWrap(True)
         status.addWidget(self.statusLabel, 1)
         self.progressBar = ProgressBar(self.actionCard)
-        self.progressBar.setFixedWidth(120)
+        self.progressBar.setFixedWidth(100)
         self.progressBar.hide()
         status.addWidget(self.progressBar)
         layout.addLayout(status)

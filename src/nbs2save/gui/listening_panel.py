@@ -87,7 +87,7 @@ class ListeningPanel(QWidget):
         heading.addWidget(label_font(SubtitleLabel("空间试听"), 16))
         heading.addStretch(1)
         self.place_near_button = QPushButton("监听当前组附近")
-        self.place_near_button.setToolTip("将双耳放到当前音符组旁，便于检查距离和声像")
+        self.place_near_button.setToolTip("将双耳放到当前音符组旁，便于检查距离和声像（此功能仍在开发中，不保证完全可用）")
         self.place_near_button.clicked.connect(lambda: self.placeNearGroupRequested.emit())
         self.face_group_button = QPushButton("转向当前组")
         self.face_group_button.setToolTip("保留当前位置，将视线与双耳朝向当前音符组")

@@ -64,8 +64,7 @@ class InstrumentsInterface(ScrollArea):
         self.setWidgetResizable(True)
         apply_page_style(self)
         header = PageHeader(
-            "自定义音色", "为每个 NBS 音色指定垫块、音高和 OGG 采样；导出、3D 预览与试听共用此表。",
-            "NOTE BETTER · 音色配置", self.scrollWidget,
+            "自定义音色", "添加自定义音色，来实现更好的表现效果",
         )
         layout.addWidget(header)
 
