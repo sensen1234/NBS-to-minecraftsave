@@ -77,7 +77,7 @@ class _BlockSink:
         self._x_starts = tuple(first for first, _ in x_ranges)
 
     def setBlock(self, position, blockstate):
-        position = tuple(map(int, position))
+        position = (int(position[0]), int(position[1]), int(position[2]))
         if not _contains(self.x_ranges, self._x_starts, position[0]):
             return
         blockstate = _normalize_blockstate(blockstate)
@@ -116,7 +116,8 @@ class _PreviewStrategy(OutputFormatStrategy):
         if isinstance(delegate, McFunctionOutputStrategy):
             delegate._write_commands = sink.write_commands
         else:
-            delegate.schem = sink
+            # 结构文件策略把方块写到 schem 上，这里替换成预览用的内存收集器
+            setattr(delegate, "schem", sink)
 
     def initialize(self, processor):
         pass
@@ -243,8 +244,16 @@ def build_preview(
     if blocks:
         positions = tuple(block.position for block in blocks)
         bounds = (
-            tuple(min(position[axis] for position in positions) for axis in range(3)),
-            tuple(max(position[axis] for position in positions) for axis in range(3)),
+            (
+                min(position[0] for position in positions),
+                min(position[1] for position in positions),
+                min(position[2] for position in positions),
+            ),
+            (
+                max(position[0] for position in positions),
+                max(position[1] for position in positions),
+                max(position[2] for position in positions),
+            ),
         )
     return PreviewData(
         blocks=blocks,

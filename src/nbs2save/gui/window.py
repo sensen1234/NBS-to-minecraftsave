@@ -152,7 +152,8 @@ class MainWindow(MSFluentWindow):
             text="外观", onClick=self.cycle_theme, selectable=False,
             position=NavigationItemPosition.BOTTOM,
         )
-        self.themeButton.setToolTip("切换浅色 / 深色 / 跟随系统")
+        if self.themeButton is not None:
+            self.themeButton.setToolTip("切换浅色 / 深色 / 跟随系统")
         self.addSubInterface(
             self.aboutInterface,
             FluentIcon.INFO,
@@ -196,7 +197,8 @@ class MainWindow(MSFluentWindow):
         setTheme(next_mode)
         QSettings("NBS2Save", "Studio").setValue("appearance", next_mode.value)
         name = {Theme.AUTO: "跟随系统", Theme.LIGHT: "浅色", Theme.DARK: "深色"}[next_mode]
-        self.themeButton.setToolTip(f"当前外观：{name} · 点击切换")
+        if self.themeButton is not None:
+            self.themeButton.setToolTip(f"当前外观：{name} · 点击切换")
 
     def check_project(self):
         try:

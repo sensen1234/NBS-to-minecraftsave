@@ -4,6 +4,7 @@
 
 from copy import deepcopy
 import math
+from typing import Any, Protocol, cast
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -30,8 +31,37 @@ from qfluentwidgets import (
 )
 
 from .coordinate_picker import CoordinatePickerDialog
-from .studio_style import ChoiceComboBox, PageHeader, apply_page_style, muted_label
+from .studio_style import (
+    ChoiceComboBox,
+    PageHeader,
+    apply_page_style,
+    cell_text,
+    muted_label,
+    table_headers,
+)
 from qfluentwidgets import CaptionLabel
+
+
+class _HomeInterfaceLike(Protocol):
+    """轨道页只用到主页面接口的这几个查询方法。"""
+
+    def getVersion(self) -> Any: ...
+
+    def getType(self) -> Any: ...
+
+    def getInputFile(self) -> str: ...
+
+
+class _MainWindowLike(Protocol):
+    """轨道页需要的主窗口接口，避免反向 import window 造成循环依赖。"""
+
+    config: dict[str, Any]
+    group_config: dict[int, dict[str, Any]]
+    homeInterface: _HomeInterfaceLike
+
+    def collect_settings(self) -> None: ...
+
+    def _settings_error(self, error: Exception) -> None: ...
 
 
 # 生成模式选项: (显示文本, 配置值) — 决定结构生成方式
@@ -54,7 +84,7 @@ class GroupsInterface(ScrollArea):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("groupsInterface")
-        self._main_window = None  # 引用主窗口以访问 group_config
+        self._main_window: _MainWindowLike | None = None  # 引用主窗口以访问 group_config
 
         self.scrollWidget = QWidget()
         self.scrollWidget.setObjectName("scrollWidget")
@@ -142,7 +172,7 @@ class GroupsInterface(ScrollArea):
             ]
         )
 
-        header = self.table.horizontalHeader()
+        vertical, header = table_headers(self.table)
         header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setMinimumSectionSize(40)
         for column, width in enumerate((40, 56, 56, 56, 72, 120, 120, 120, 120, 120)):
@@ -153,9 +183,11 @@ class GroupsInterface(ScrollArea):
         header.setStretchLastSection(False)
         tips = {1: "世界坐标 X，正方向为东。", 2: "世界坐标 Y，正方向为上。", 3: "世界坐标 Z，正方向为南。", 5: "对应 NBS 的轨道序号，从 0 开始；例如 0,1,3。", 6: "红石线路的基础方块。音符盒下垫块由乐器或自定义音色决定。", 7: "线路覆盖方块；音符盒上方会留空以便发声。", 8: "阶梯布局需要 Schematic 格式。", 9: "声像模式使用音符 panning；音量模式根据音量调整距离。"}
         for column, tip in tips.items():
-            self.table.horizontalHeaderItem(column).setToolTip(tip)
-        self.table.verticalHeader().setDefaultSectionSize(46)
-        self.table.verticalHeader().setVisible(False)
+            item = self.table.horizontalHeaderItem(column)
+            if item is not None:
+                item.setToolTip(tip)
+        vertical.setDefaultSectionSize(46)
+        vertical.setVisible(False)
         self.table.setShowGrid(False)
         self.table.setFrameShape(QFrame.Shape.NoFrame)
         self.table.setSelectionBehavior(
@@ -169,7 +201,12 @@ class GroupsInterface(ScrollArea):
     # ── 公开接口 ──
 
     def setMainWindow(self, mw):
-        self._main_window = mw
+        self._main_window = cast(_MainWindowLike, mw)
+
+    def _window(self) -> _MainWindowLike:
+        """返回已绑定的主窗口；未绑定时给出明确错误。"""
+        assert self._main_window is not None, "轨道页尚未绑定主窗口"
+        return self._main_window
 
     def refreshTable(self):
         """从主窗口的 group_config 刷新表格"""
@@ -243,15 +280,15 @@ class GroupsInterface(ScrollArea):
             self.saveTableToConfig()
             return True
         except (ValueError, TypeError) as error:
-            self._main_window._settings_error(error)
+            self._window()._settings_error(error)
             return False
 
     def duplicateGroup(self):
         row = self.table.currentRow()
         if row < 0 or not self._save_edits():
             return
-        gc = self._main_window.group_config
-        original_id = int(self.table.item(row, 0).text())
+        gc = self._window().group_config
+        original_id = int(cell_text(self.table, row, 0))
         gid = max(gc, default=-1) + 1
         draft = deepcopy(gc[original_id])
         x, y, z = map(int, draft["base_coords"])
@@ -267,17 +304,17 @@ class GroupsInterface(ScrollArea):
         new_config = {}
         for r in range(self.table.rowCount()):
             try:
-                gid = int(self.table.item(r, 0).text())
+                gid = int(cell_text(self.table, r, 0))
             except Exception:
                 gid = r
 
             if gid in new_config:
                 raise ValueError(f"组 ID {gid} 重复，请为每个组使用独立 ID。")
             try:
-                x, y, z = (str(int(self.table.item(r, column).text().strip() or "0")) for column in (1, 2, 3))
+                x, y, z = (str(int(cell_text(self.table, r, column).strip() or "0")) for column in (1, 2, 3))
             except ValueError as exc:
                 raise ValueError(f"组 {gid} 的 XYZ 坐标需填写整数。") from exc
-            layers_str = self.table.item(r, 5).text().strip()
+            layers_str = cell_text(self.table, r, 5).strip()
             try:
                 layers = list(dict.fromkeys(int(value) for value in layers_str.replace("，", ",").split(",") if value.strip())) if layers_str else [0]
                 if any(layer < 0 for layer in layers):
@@ -285,10 +322,10 @@ class GroupsInterface(ScrollArea):
             except ValueError as exc:
                 raise ValueError(f"组 {gid} 的轨道 ID 需为非负整数；多个 ID 用逗号分隔，例如 0,1,3。") from exc
             b_base = (
-                self.table.item(r, 6).text().strip() or "minecraft:iron_block"
+                cell_text(self.table, r, 6).strip() or "minecraft:iron_block"
             )
             b_cover = (
-                self.table.item(r, 7).text().strip() or "minecraft:iron_block"
+                cell_text(self.table, r, 7).strip() or "minecraft:iron_block"
             )
             mode = "default"
             if self.table.columnCount() >= 9:
@@ -302,7 +339,7 @@ class GroupsInterface(ScrollArea):
                     )
                 elif self.table.item(r, 8) is not None:
                     # 兼容旧式 QTableWidgetItem
-                    mode = self.table.item(r, 8).text().strip() or "default"
+                    mode = cell_text(self.table, r, 8).strip() or "default"
 
             # 偏移模式
             offset_mode = "pan"
@@ -330,7 +367,7 @@ class GroupsInterface(ScrollArea):
         """添加新分组"""
         if not self._save_edits():
             return
-        gc = self._main_window.group_config
+        gc = self._window().group_config
         gid = max(gc.keys()) + 1 if gc else 0
         gc[gid] = {
             "base_coords": ("0", "0", "0"),
@@ -376,18 +413,19 @@ class GroupsInterface(ScrollArea):
             self._openCoordinatePicker(max(0, self.table.currentRow()))
 
     def _openCoordinatePicker(self, row):
+        window = self._window()
         try:
-            self._main_window.collect_settings()
+            window.collect_settings()
         except (ValueError, TypeError) as error:
-            self._main_window._settings_error(error)
+            window._settings_error(error)
             return
-        gc = self._main_window.group_config
+        gc = window.group_config
         try:
-            gid = int(self.table.item(row, 0).text())
+            gid = int(cell_text(self.table, row, 0))
         except Exception:
             gid = row
-        home = self._main_window.homeInterface
-        preview_config = deepcopy(self._main_window.config)
+        home = window.homeInterface
+        preview_config = deepcopy(window.config)
         preview_config["data_version"] = home.getVersion()
         preview_config["type"] = home.getType()
         if "position" not in preview_config.get("listening", {}):
@@ -435,10 +473,10 @@ class GroupsInterface(ScrollArea):
         dlg.coordinatesChanged.connect(lambda _: listening.invalidate())
         dlg.finished.connect(lambda _: listening.shutdown())
         if dlg.exec():
-            self._main_window.group_config = dlg.get_groups_data()
+            window.group_config = dlg.get_groups_data()
             for key in ("listening", "minecraft_assets_dir"):
                 if key in preview_config:
-                    self._main_window.config[key] = deepcopy(preview_config[key])
+                    window.config[key] = deepcopy(preview_config[key])
             self.refreshTable()
         listening.shutdown()
         dlg.deleteLater()

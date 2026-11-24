@@ -122,19 +122,28 @@ class GroupProcessor(ABC):
         self.group_config: Dict = group_config
 
         # 以下字段在 process() 中动态填充
-        self.base_x: int | None = None  # 轨道组基准 X 坐标
-        self.base_y: int | None = None  # 轨道组基准 Y 坐标
-        self.base_z: int | None = None  # 轨道组基准 Z 坐标
-        self.notes: List[Note] | None = None  # 属于本组的音符（按 tick 排序）
-        self.tick_status: defaultdict[int, Dict[str, bool]] = None  # tick 级状态缓存
+        self.base_x: int = 0  # 轨道组基准 X 坐标
+        self.base_y: int = 0  # 轨道组基准 Y 坐标
+        self.base_z: int = 0  # 轨道组基准 Z 坐标
+        self.notes: List[Note] = []  # 属于本组的音符（按 tick 排序）
+        # tick 级状态缓存；每个轨道组开始时都会重置
+        self.tick_status: defaultdict[int, Dict[str, bool]] = defaultdict(
+            lambda: {"left": False, "right": False}
+        )
         self.group_max_tick: int = 0  # 本组最大 tick
         self.layers: set[int] = set()  # 本组包含的 layer 编号
         self.cover_block: str = ""  # 走线顶层方块
         self.base_block: str = ""  # 走线/基座方块
         self.log_callback = None  # 日志回调
         self.progress_callback = None  # 进度回调
-        self.output_strategy: OutputFormatStrategy = None  # 输出格式策略
+        self.output_strategy: OutputFormatStrategy | None = None  # 输出格式策略
         self.generation_mode: str = "default"  # 生成模式（default 或 staircase）
+
+    def _require_strategy(self) -> OutputFormatStrategy:
+        """返回当前输出策略；未设置时给出明确错误。"""
+        if self.output_strategy is None:
+            raise ValueError("未设置输出格式策略，请先调用set_output_strategy方法")
+        return self.output_strategy
 
     # ----------------------
     # 回调注册
@@ -203,32 +212,30 @@ class GroupProcessor(ABC):
         if type(old_strategy) is type(new_strategy):
             return  # 同类型策略，无需切换
 
-        # 传递schematic（所有schematic策略共享同一个MCSchematic对象）
+        # 传递schematic（所有schematic策略共享同一个MCSchematic对象）。
+        # schem 只存在于结构文件策略上，用 setattr 转发以免把 MCSchematic
+        # 耦合进基类接口。
         schem = getattr(old_strategy, "schem", None)
         if schem is not None:
-            new_strategy.schem = schem
+            setattr(new_strategy, "schem", schem)
 
         self.output_strategy = new_strategy
         # 初始化新策略（schem已存在时不会重建）
-        self.output_strategy.initialize(self)
+        new_strategy.initialize(self)
 
     # ----------------------
     # 主流程入口
     # ----------------------
     def process(self):
         """遍历所有轨道组，依次处理。完整生命周期：初始化 -> 逐组处理 -> 完成。"""
-        # 检查是否设置了输出策略（作为默认回退）
-        if self.output_strategy is None:
-            raise ValueError("未设置输出格式策略，请先调用set_output_strategy方法")
-
-        # 初始化默认策略
-        self.output_strategy.initialize(self)
+        # 初始化默认策略（作为默认回退）
+        self._require_strategy().initialize(self)
 
         # 处理所有轨道组
         self._process_groups()
 
-        # 完成处理
-        self.output_strategy.finalize(self)
+        # 完成处理（处理过程中可能切换过策略，取当前策略）
+        self._require_strategy().finalize(self)
 
     def _process_groups(self):
         """逐个处理轨道组，根据每组的生成模式选择对应的输出策略。"""
@@ -412,6 +419,7 @@ class GroupProcessor(ABC):
         """
         # Optional inclusive bounds let the preview reuse the exact generation
         # pipeline without walking an entire song. Export keeps the full range.
+        strategy = self._require_strategy()
         current_tick = max(0, start_tick)
         last_tick = self.global_max_tick if end_tick is None else min(
             end_tick, self.global_max_tick
@@ -430,7 +438,7 @@ class GroupProcessor(ABC):
             self.update_progress(progress)
 
             # 2. 基础结构（时钟、走线）
-            self.output_strategy.write_base_structures(self, current_tick)
+            strategy.write_base_structures(self, current_tick)
 
             # 3. 收集当前 tick 的音符
             active_notes: List[Note] = []
@@ -473,10 +481,10 @@ class GroupProcessor(ABC):
                     pan_directions.add(1 if pan > 0 else -1)
 
             for direction in sorted(pan_directions, reverse=True):  # 左(-1) > 右(1)
-                self.output_strategy.write_pan_platform(self, current_tick, direction)
+                strategy.write_pan_platform(self, current_tick, direction)
 
             # 6. 生成音符
             for note in active_notes:
-                self.output_strategy.write_note(self, note)
+                strategy.write_note(self, note)
 
             current_tick += 1

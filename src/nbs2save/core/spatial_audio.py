@@ -18,6 +18,7 @@ from typing import Callable
 import wave
 
 import numpy as np
+from pynbs import Note
 
 from .core import GroupProcessor, OutputFormatStrategy
 from .constants import INSTRUMENT_BLOCK_MAPPING, INSTRUMENT_MAPPING
@@ -83,18 +84,21 @@ class _EventSink:
     def __init__(self, start, tempo):
         self.events = []
         self.group_id = None
-        self.note = None
+        self.note: Note | None = None  # 写入某个音符前由调用方设置
         self.start = start
         self.tempo = tempo
 
     def setBlock(self, position, blockstate):
         if blockstate.split("[", 1)[0].removeprefix("minecraft:") != "note_block":
             return
+        note = self.note
+        if note is None:  # 非音符写入（如时钟结构），没有对应的 NBS 音符
+            return
         props = dict(part.split("=", 1) for part in blockstate.partition("[")[2].rstrip("]").split(",") if "=" in part)
         state = blockstate if blockstate.startswith("minecraft:") else "minecraft:" + blockstate
         self.events.append(SpatialEvent(
-            self.note.tick, (self.note.tick - self.start) / self.tempo,
-            self.group_id, tuple(map(int, position)), self.note.instrument,
+            note.tick, (note.tick - self.start) / self.tempo,
+            self.group_id, (int(position[0]), int(position[1]), int(position[2])), note.instrument,
             int(props.get("note", "0")), state,
         ))
 

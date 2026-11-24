@@ -92,8 +92,8 @@ class ComboBoxCard(SettingCard):
         self.comboBox.currentTextChanged.connect(self.valueChanged.emit)
 
     def addItem(self, text, userData=None):
-        """添加选项。icon 参数固定为 None，userData 通过第三参数传入。"""
-        self.comboBox.addItem(text, None, userData)
+        """添加选项；省略 icon 参数，仅携带 userData。"""
+        self.comboBox.addItem(text, userData=userData)
 
     def currentData(self):
         return self.comboBox.currentData()

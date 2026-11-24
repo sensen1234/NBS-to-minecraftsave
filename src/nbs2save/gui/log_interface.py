@@ -3,7 +3,7 @@
 """
 
 from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QApplication
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 
 from qfluentwidgets import (
     CardWidget,
@@ -13,7 +13,7 @@ from qfluentwidgets import (
     FluentIcon,
     isDarkTheme, qconfig,
 )
-from .studio_style import PageHeader
+from .studio_style import PageHeader, copy_to_clipboard
 
 
 class LogInterface(QWidget):
@@ -38,7 +38,7 @@ class LogInterface(QWidget):
 
         self.copyBtn = PushButton("复制日志", self)
         self.copyBtn.setIcon(FluentIcon.COPY)
-        self.copyBtn.clicked.connect(lambda: QApplication.clipboard().setText(self.logText.toPlainText()))
+        self.copyBtn.clicked.connect(lambda: copy_to_clipboard(self.logText.toPlainText()))
         headerLayout.addWidget(self.copyBtn)
 
         self.clearBtn = PushButton("清空", self)

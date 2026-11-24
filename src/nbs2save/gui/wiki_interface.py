@@ -35,7 +35,14 @@ from qfluentwidgets import (
 from PyQt6.QtWidgets import QTableWidgetItem, QHeaderView, QSizePolicy, QFrame
 
 from .wiki_content import build_wiki_content
-from .studio_style import PageHeader, apply_page_style, label_font, muted_label
+from .studio_style import (
+    PageHeader,
+    apply_page_style,
+    copy_to_clipboard,
+    label_font,
+    muted_label,
+    table_headers,
+)
 
 
 # ── markdown 内联格式: **bold**, `code`, [text](url) → HTML ──
@@ -157,7 +164,6 @@ class WikiContentInterpreter:
         """添加代码块 (CardWidget + 语言标签 + 复制按钮 + PlainTextEdit)"""
         if self._collect_only:
             return
-        from PyQt6.QtWidgets import QApplication
 
         card = CardWidget(self.parent)
         cl = QVBoxLayout(card)
@@ -181,9 +187,7 @@ class WikiContentInterpreter:
         copyBtn.setFixedSize(28, 24)
         copyBtn.setToolTip("复制代码")
         code_content = content
-        copyBtn.clicked.connect(
-            lambda: QApplication.clipboard().setText(code_content)
-        )
+        copyBtn.clicked.connect(lambda: copy_to_clipboard(code_content))
         headerLayout.addWidget(copyBtn)
         cl.addWidget(header)
 
@@ -227,9 +231,9 @@ class WikiContentInterpreter:
         table.setRowCount(row_count)
         table.setHorizontalHeaderLabels(headers)
 
-        hv = table.horizontalHeader()
+        vertical, horizontal = table_headers(table)
         for c in range(col_count):
-            hv.setSectionResizeMode(c, QHeaderView.ResizeMode.Stretch)
+            horizontal.setSectionResizeMode(c, QHeaderView.ResizeMode.Stretch)
 
         for r, row in enumerate(rows):
             for c, cell in enumerate(row):
@@ -237,13 +241,13 @@ class WikiContentInterpreter:
                 item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 table.setItem(r, c, item)
 
-        table.verticalHeader().setVisible(False)
+        vertical.setVisible(False)
         table.setEditTriggers(TableWidget.EditTrigger.NoEditTriggers)
         table.setSelectionMode(TableWidget.SelectionMode.NoSelection)
 
         vis_rows = min(row_count, 20)
-        row_h = table.verticalHeader().defaultSectionSize() or 30
-        header_h = table.horizontalHeader().height() or 28
+        row_h = vertical.defaultSectionSize() or 30
+        header_h = horizontal.height() or 28
         table.setFixedHeight(vis_rows * row_h + header_h + 4)
 
         cl.addWidget(table)
@@ -596,9 +600,12 @@ class WikiInterface(ScrollArea):
         for level, text, widget in self._headings:
             if level >= 2:
                 if count == toc_idx and widget is not None:
-                    QTimer.singleShot(0, lambda w=widget: self.verticalScrollBar().setValue(
-                        max(0, w.pos().y() - 20)
-                    ))
+                    def _scroll(w=widget):
+                        bar = self.verticalScrollBar()
+                        if bar is not None:
+                            bar.setValue(max(0, w.pos().y() - 20))
+
+                    QTimer.singleShot(0, _scroll)
                     return
                 count += 1
 

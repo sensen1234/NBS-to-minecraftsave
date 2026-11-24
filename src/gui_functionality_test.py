@@ -114,10 +114,10 @@ class GUI_Functionality_Test(unittest.TestCase):
         # 检查表格列数
         self.assertEqual(table.columnCount(), 9)
 
-        # 检查表头
+        # 检查表头（PyQt6 的类型存根把 horizontalHeaderItem() 标成可空）
         headers = [
-            table.horizontalHeaderItem(i).text()
-            for i in range(table.columnCount())
+            (item.text() if item is not None else "")
+            for item in (table.horizontalHeaderItem(i) for i in range(table.columnCount()))
         ]
         expected_headers = [
             "ID", "基准X", "基准Y", "基准Z", "坐标规划",

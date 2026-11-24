@@ -342,7 +342,9 @@ class ListeningPanel(QWidget):
         self.play_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.status_label.setText("正在根据导出坐标生成空间音频…")
-        QThreadPool.globalInstance().start(worker)
+        pool = QThreadPool.globalInstance()
+        if pool is not None:
+            pool.start(worker)
 
     def _render_progress(self, revision, value):
         if not self._closed and revision == self._revision:

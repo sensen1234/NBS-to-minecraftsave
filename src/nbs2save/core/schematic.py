@@ -31,7 +31,7 @@ class SchematicOutputStrategy(OutputFormatStrategy):
     """输出为 .schem 结构文件的策略实现。"""
 
     def __init__(self):
-        self.schem: MCSchematic = None  # 内存中的结构对象
+        self.schem: MCSchematic = MCSchematic()  # 内存中的结构对象
 
     def initialize(self, processor: GroupProcessor):
         """
@@ -40,9 +40,7 @@ class SchematicOutputStrategy(OutputFormatStrategy):
         参数:
         processor: GroupProcessor实例
         """
-        if self.schem is None:
-            self.schem = MCSchematic()
-        # 验证配置
+        # schem 在构造时创建；切换策略时可能已由上一策略传入，这里不重建
         self.validate_config(processor)
 
     def write_base_structures(self, processor: GroupProcessor, tick: int):

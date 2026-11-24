@@ -2,7 +2,7 @@
 
 from PyQt6.QtCore import QObject, pyqtSlot
 from PyQt6.QtGui import QColor, QFont
-from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout
 from qfluentwidgets import TitleLabel, BodyLabel, CaptionLabel, ComboBox, isDarkTheme, qconfig
 
 
@@ -18,7 +18,9 @@ class ChoiceComboBox(ComboBox):
     def _createComboMenu(self):
         menu = super()._createComboMenu()
         menu.view.setGraphicsEffect(None)
-        menu.layout().setContentsMargins(0, 0, 0, 0)
+        layout = menu.layout()
+        if layout is not None:
+            layout.setContentsMargins(0, 0, 0, 0)
         menu.adjustSize()
         return menu
 
@@ -64,13 +66,23 @@ class _PagePalette(QObject):
     @pyqtSlot()
     def apply(self):
         page = self.page
-        content = page.scrollWidget
+        content = page_content(page)
         color = "#181c23" if isDarkTheme() else "#f4f6f8"
-        content.setAutoFillBackground(False)
-        page.setStyleSheet(
-            f"QScrollArea#{page.objectName()} {{ background: {color}; border: none; }}"
-            f"QWidget#{content.objectName()} {{ background: {color}; }}"
-        )
+        stylesheet = f"QScrollArea#{page.objectName()} {{ background: {color}; border: none; }}"
+        if content is not None:
+            content.setAutoFillBackground(False)
+            stylesheet += f"QWidget#{content.objectName()} {{ background: {color}; }}"
+        page.setStyleSheet(stylesheet)
+
+
+def page_content(page):
+    """返回滚动页的内容容器。
+
+    页面通常按 qfluentwidgets 的约定把内容控件保存为 ``scrollWidget``；
+    只调用 ``setWidget`` 的页面则回退到 ``widget()``。
+    """
+    content = getattr(page, "scrollWidget", None)
+    return content if content is not None else page.widget()
 
 
 def apply_page_style(page):
@@ -78,7 +90,9 @@ def apply_page_style(page):
     if hasattr(page, "_studio_palette"):
         page._studio_palette.apply()
         return
-    page.scrollWidget.setObjectName(page.objectName() + "Content")
+    content = page_content(page)
+    if content is not None:
+        content.setObjectName(page.objectName() + "Content")
     page._studio_palette = _PagePalette(page)
 
 
@@ -92,6 +106,23 @@ def table_headers(table):
     vertical, horizontal = table.verticalHeader(), table.horizontalHeader()
     assert vertical is not None and horizontal is not None
     return vertical, horizontal
+
+
+def cell_text(table, row, column):
+    """读取单元格文本。
+
+    PyQt6 的类型存根把 ``item()`` 标成可空，但表格自带行时该单元格必然存在；
+    这里把可空类型收敛为字符串，避免调用处反复判空。
+    """
+    item = table.item(row, column)
+    return item.text() if item is not None else ""
+
+
+def copy_to_clipboard(text):
+    """写入系统剪贴板；没有可用剪贴板的环境下静默跳过。"""
+    clipboard = QApplication.clipboard()
+    if clipboard is not None:
+        clipboard.setText(text)
 
 
 def fit_table_height(table, *, min_rows=3, max_height=380):

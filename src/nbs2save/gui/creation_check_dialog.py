@@ -49,12 +49,12 @@ class CreationCheckDialog(QDialog):
         layout.addWidget(self.status)
         self.area = ScrollArea(self)
         self.area.setObjectName("creationReview")
-        self.area.scrollWidget = QWidget()
-        self.results = QVBoxLayout(self.area.scrollWidget)
+        self.content = QWidget()
+        self.results = QVBoxLayout(self.content)
         self.results.setContentsMargins(8, 8, 8, 8)
         self.results.setSpacing(8)
         self.results.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.area.setWidget(self.area.scrollWidget)
+        self.area.setWidget(self.content)
         self.area.setWidgetResizable(True)
         apply_page_style(self.area)
         layout.addWidget(self.area, 1)
@@ -67,7 +67,9 @@ class CreationCheckDialog(QDialog):
         layout.addWidget(close, alignment=Qt.AlignmentFlag.AlignRight)
         self.worker = _CheckWorker(path, groups, config)
         self.worker.signals.finished.connect(self._show_results)
-        QThreadPool.globalInstance().start(self.worker)
+        pool = QThreadPool.globalInstance()
+        if pool is not None:
+            pool.start(self.worker)
 
     def _show_results(self, issues, error):
         if self._closed:
@@ -81,7 +83,7 @@ class CreationCheckDialog(QDialog):
             if issues else "已完成检查，未发现上述范围内的问题。"
         )
         for issue in sorted(issues, key=lambda i: {"error": 0, "warning": 1, "info": 2}[i.severity]):
-            card = CardWidget(self.area.scrollWidget)
+            card = CardWidget(self.content)
             row = QVBoxLayout(card)
             row.setContentsMargins(16, 12, 16, 14)
             level = {"error": "需修正", "warning": "建议", "info": "提示"}[issue.severity]

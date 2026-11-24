@@ -8,6 +8,7 @@ uses one scale for all three axes; changing the view never changes world positio
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -88,6 +89,20 @@ class _Face:
     block: int
     material: str
     area: float
+
+
+def _vec3(values: Sequence[float]) -> _Vec:
+    """把任意 3 个数值收敛成定长三元组，满足 _Vec 的类型要求。"""
+    return values[0], values[1], values[2]
+
+
+def _shift(vertex: _Vec, offset: _Vec) -> _Vec:
+    """按 offset 平移一个顶点。"""
+    return (
+        vertex[0] + offset[0],
+        vertex[1] + offset[1],
+        vertex[2] + offset[2],
+    )
 
 
 def _parse_state(state: str) -> tuple[str, dict[str, str]]:
@@ -248,7 +263,7 @@ class MinecraftPreviewWidget(QWidget):
         self._screen_faces = []
         self._hit_grid = {}
         self._group_offsets = {}
-        self._anchors = {gid: tuple(float(v) for v in xyz) for gid, xyz in anchors.items()}
+        self._anchors = {gid: _vec3([float(v) for v in xyz]) for gid, xyz in anchors.items()}
         self._target_id = target_id
         self._blocks = []
         placements = getattr(data, "blocks", ()) if data is not None else ()
@@ -263,9 +278,10 @@ class MinecraftPreviewWidget(QWidget):
         self._message = "" if self._blocks else "暂无方块；标记表示各轨道组的实际基准坐标"
         self._make_mesh()
         if self._blocks:
+            positions = [block.position for block in self._blocks]
             self._bounds = (
-                tuple(min(b.position[i] for b in self._blocks) for i in range(3)),
-                tuple(max(b.position[i] + 1 for b in self._blocks) for i in range(3)),
+                _vec3([min(position[i] for position in positions) for i in range(3)]),
+                _vec3([max(position[i] + 1 for position in positions) for i in range(3)]),
             )
         else:
             self._bounds = None
@@ -290,10 +306,11 @@ class MinecraftPreviewWidget(QWidget):
         if position is None:
             self._listener_position = None
         else:
-            xyz = tuple(float(value) for value in position)
+            values = [float(value) for value in position]
             angle = float(yaw)
-            if len(xyz) != 3 or not all(math.isfinite(value) for value in (*xyz, angle)):
+            if len(values) != 3 or not all(math.isfinite(value) for value in (*values, angle)):
                 raise ValueError("监听坐标与朝向必须为有限数值")
+            xyz = _vec3(values)
             self._listener_position = xyz
             self._listener_yaw = angle % 360
             radians = math.radians(angle)
@@ -313,9 +330,9 @@ class MinecraftPreviewWidget(QWidget):
             points.append(self._listener_position)
         if not points:
             points = [(-3, 0, -3), (3, 3, 3)]
-        low = tuple(min(p[i] for p in points) for i in range(3))
-        high = tuple(max(p[i] for p in points) for i in range(3))
-        self._center = tuple((low[i] + high[i]) / 2 for i in range(3))
+        low = _vec3([min(p[i] for p in points) for i in range(3)])
+        high = _vec3([max(p[i] for p in points) for i in range(3)])
+        self._center = _vec3([(low[i] + high[i]) / 2 for i in range(3)])
         self._pan = QPointF()
         projected = [self._project_units(p) for p in points]
         sx = max(4.0, max(p[0] for p in projected) - min(p[0] for p in projected))
@@ -370,11 +387,17 @@ class MinecraftPreviewWidget(QWidget):
             ((X, Y, z), (x, Y, z), (x, y, z), (X, y, z)),
         )
         bx, by, bz = self._blocks[index].position
+        offset = (bx, by, bz)
         for normal, vertices in zip(_NORMALS, corners):
             if hidden and normal in hidden:
                 continue
-            world = tuple((vx + bx, vy + by, vz + bz) for vx, vy, vz in vertices)
-            center = tuple(sum(v[i] for v in world) / 4 for i in range(3))
+            world = (
+                _shift(vertices[0], offset),
+                _shift(vertices[1], offset),
+                _shift(vertices[2], offset),
+                _shift(vertices[3], offset),
+            )
+            center = _vec3([sum(v[i] for v in world) / 4 for i in range(3)])
             area = ((Y - y) * (Z - z) if normal[0] else
                     (X - x) * (Z - z) if normal[1] else (X - x) * (Y - y))
             self._faces.append(_Face(world, normal, center, index, material, area))
@@ -388,7 +411,9 @@ class MinecraftPreviewWidget(QWidget):
             if block.full:
                 hidden = set()
                 for normal in _NORMALS:
-                    adjacent = occupied.get(tuple(block.position[i] + normal[i] for i in range(3)))
+                    adjacent = occupied.get(
+                        _vec3([block.position[i] + normal[i] for i in range(3)])
+                    )
                     # A wire or repeater never hides a neighbouring full cube's face.
                     if adjacent and (adjacent.opaque or (adjacent.full and adjacent.name == name and not block.opaque)):
                         hidden.add(normal)
@@ -443,8 +468,13 @@ class MinecraftPreviewWidget(QWidget):
             elif name.endswith("_stairs"):
                 upside = props.get("half") == "top"
                 self._box(index, (0, .5 if upside else 0, 0), (1, 1 if upside else .5, 1), material)
-                low, high = {"north": ((0, 0, 0), (1, 1, .5)), "south": ((0, 0, .5), (1, 1, 1)),
-                             "east": ((.5, 0, 0), (1, 1, 1)), "west": ((0, 0, 0), (.5, 1, 1))}.get(props.get("facing"), ((0, 0, 0), (1, 1, .5)))
+                steps: dict[str, tuple[_Vec, _Vec]] = {
+                    "north": ((0, 0, 0), (1, 1, .5)),
+                    "south": ((0, 0, .5), (1, 1, 1)),
+                    "east": ((.5, 0, 0), (1, 1, 1)),
+                    "west": ((0, 0, 0), (.5, 1, 1)),
+                }
+                low, high = steps.get(props.get("facing", ""), ((0, 0, 0), (1, 1, .5)))
                 self._box(index, (low[0], 0 if upside else .5, low[2]), (high[0], .5 if upside else 1, high[2]), material)
             elif name.endswith("_pane"):
                 self._box(index, (.4375, 0, 0), (.5625, 1, 1), "glass")
@@ -620,7 +650,9 @@ class MinecraftPreviewWidget(QWidget):
         ground = self._project((xyz[0], floor, xyz[2]))
         painter.drawLine(point, ground)
         painter.drawEllipse(ground, 3, 3)
-        direction = self._project(tuple(xyz[i] + self._listener_forward[i] for i in range(3))) - point
+        direction = self._project(
+            _vec3([xyz[i] + self._listener_forward[i] for i in range(3)])
+        ) - point
         length = math.hypot(direction.x(), direction.y())
         if length > .001:
             direction *= 28 / length
@@ -655,7 +687,9 @@ class MinecraftPreviewWidget(QWidget):
         if self._dirty or self._cache is None or isDarkTheme() != self._dark:
             self._render_scene()
         painter = QPainter(self)
-        painter.drawPixmap(0, 0, self._cache)
+        cache = self._cache
+        if cache is not None:
+            painter.drawPixmap(0, 0, cache)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         if self._hover is not None and self._drag_pos is None:
             painter.setBrush(QColor(255, 200, 84, 65))
@@ -754,7 +788,9 @@ class MinecraftPreviewWidget(QWidget):
             gid = self._group_drag_id
             if coords != self._anchors[gid]:
                 self._anchors[gid] = coords
-                self._group_offsets[gid] = tuple(self._group_drag_base[i] + coords[i] - origin[i] for i in range(3))
+                self._group_offsets[gid] = _vec3(
+                    [self._group_drag_base[i] + coords[i] - origin[i] for i in range(3)]
+                )
                 self._group_drag_changed = True
                 self.groupMoved.emit(gid, tuple(int(v) for v in coords))
                 self._invalidate()
