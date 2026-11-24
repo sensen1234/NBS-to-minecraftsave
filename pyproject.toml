@@ -1,6 +1,6 @@
 [project]
 name = "NBS-to-minecraftsave"
-version = "2.4.0"
+version = "3.0.0"
 description = "将 Note Block Studio 制作的音乐文件（`.nbs`）转换为 Minecraft 中可播放格式的强大工具"
 readme = "README.md"
 license-files = ["LICENSE"]
